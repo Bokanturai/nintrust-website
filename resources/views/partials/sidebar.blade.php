@@ -165,6 +165,15 @@
             </a>
         </li>
 
+
+        <li class="nav-item">
+            <a class="nav-link {{ Route::is('user.vnin-slip') ? 'active' : '' }}"
+               href="{{ route('user.vnin-slip') }}">
+                <i class="mdi mdi-pencil-lock-outline menu-icon"></i>
+                <span class="menu-title">VNIN Slip</span>
+            </a>
+        </li>
+
         <li class="nav-item">
             <a class="nav-link {{ Route::is('user.scratch_cards.index') ? 'active' : '' }}"
                href="{{ route('user.scratch_cards.index') }}">
@@ -263,6 +272,13 @@
                            href="{{ route('admin.transactions') }}">
                             <i class="mdi mdi-receipt-text-outline menu-icon"></i>
                             All Transactions
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::is('admin.vnin-slip.index') ? 'active' : '' }}"
+                           href="{{ route('admin.vnin-slip.index') }}">
+                            <i class="mdi mdi-pencil-lock-outline menu-icon"></i>VNIN Slip
                         </a>
                     </li>
 

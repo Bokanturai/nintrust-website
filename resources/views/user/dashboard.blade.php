@@ -775,6 +775,11 @@
                                         'label' => 'Suspended NIN',
                                         'route' => 'user.suspended-nin.form',
                                     ],
+                                    [
+                                        'icon' => 'bi-card-text',
+                                        'label' => 'VNIN Slip',
+                                        'route' => 'user.vnin-slip',
+                                    ],
                                 ];
                             @endphp
 

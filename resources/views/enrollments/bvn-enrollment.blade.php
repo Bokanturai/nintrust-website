@@ -152,7 +152,7 @@
                                                 </small><br />
                                                 <small class="text-danger fw-bold">Andriod Access only </small>
                                                 <p class="fw-bold"> Enrollment Fee:
-                                                    &#x20A6;{{ number_format($ServiceFee->amount), 2 }}</p>
+                                                    &#x20A6;{{ number_format($ServiceFee->amount, 2) }}</p>
 
                                             </div>
                                             <button type="submit" id="submit" name="submit"

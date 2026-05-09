@@ -30,7 +30,7 @@ class EnrollmentController extends Controller
             ->keyBy('service_code');
 
         // Extract specific service fees
-        $ServiceFee = $services->get('110') ?? 0.00;
+        $ServiceFee = $services->get('110') ?? new \App\Models\Service(['amount' => 0.00]);
 
         $enrollments = Enrollment::where('user_id', $this->loginId)
             ->orderBy('id', 'desc')
@@ -70,7 +70,7 @@ class EnrollmentController extends Controller
                 ->with('error', 'Service Error: Sorry Action not Allowed !');
         }
 
-        $ServiceFee = $ServiceFee->amount;
+
 
         $loginUserId = auth()->user()->id;
 
@@ -117,6 +117,7 @@ class EnrollmentController extends Controller
                 // // Set cURL options
                 // curl_setopt($ch, CURLOPT_URL, $url);
                 // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 // curl_setopt($ch, CURLOPT_POST, true);
                 // curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 // curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));

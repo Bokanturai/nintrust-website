@@ -70,7 +70,7 @@ class SuspendedNinController extends Controller
         $fee = $service->amount;
         $wallet = Wallet::where('user_id', $this->loginId)->first();
 
-        if ($wallet->balance < $fee) {
+        if (!$wallet || $wallet->balance < $fee) {
             return redirect()->back()->with('error', 'Insufficient wallet balance.');
         }
 

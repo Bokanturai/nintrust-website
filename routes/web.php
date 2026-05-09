@@ -95,25 +95,29 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/receipt/{referenceId}', [TransactionController::class, 'reciept'])->name('reciept');
 
             // Verification-----------------------------------------------------------------------------------------------------
-            // NIN
-            Route::post('/nin-retrieve', [VerificationController::class, 'ninRetrieve'])->name('ninRetrieve');
-            Route::post('/nin-v2-retrieve', [VerificationController::class, 'ninV2Retrieve'])->name('nin-v2-Retrieve');
-            Route::post('/nin-demo-retrieve', [VerificationController::class, 'ninDemoRetrieve'])->name('nin-demo-Retrieve');
-            Route::post('/nin-phone-retrieve', [VerificationController::class, 'ninPhoneRetrieve'])->name('ninPhoneRetrieve');
-            Route::post('/nin-track-retrieve', [VerificationController::class, 'ninTrackRetrieve'])->name('ninTrackRetrieve');
+            Route::middleware('throttle:10,1')->group(function () {
+                // NIN
+                Route::post('/nin-retrieve', [VerificationController::class, 'ninRetrieve'])->name('ninRetrieve');
+                Route::post('/nin-v2-retrieve', [VerificationController::class, 'ninV2Retrieve'])->name('nin-v2-Retrieve');
+                Route::post('/nin-demo-retrieve', [VerificationController::class, 'ninDemoRetrieve'])->name('nin-demo-Retrieve');
+                Route::post('/nin-phone-retrieve', [VerificationController::class, 'ninPhoneRetrieve'])->name('ninPhoneRetrieve');
+                Route::post('/nin-track-retrieve', [VerificationController::class, 'ninTrackRetrieve'])->name('ninTrackRetrieve');
 
-            // BVN
-            Route::post('/bvn-retrieve', [VerificationController::class, 'bvnRetrieve'])->name('bvnRetrieve');
+                // BVN
+                Route::post('/bvn-retrieve', [VerificationController::class, 'bvnRetrieve'])->name('bvnRetrieve');
+            });
 
             // PDF Downloads -----------------------------------------------------------------------------------------------------
-            Route::get('/standardBVN/{id}', [VerificationController::class, 'standardBVN'])->name('standardBVN');
-            Route::get('/premiumBVN/{id}', [VerificationController::class, 'premiumBVN'])->name('premiumBVN');
-            Route::get('/plasticBVN/{id}', [VerificationController::class, 'plasticBVN'])->name('plasticBVN');
+            Route::middleware('throttle:20,1')->group(function () {
+                Route::get('/standardBVN/{id}', [VerificationController::class, 'standardBVN'])->name('standardBVN');
+                Route::get('/premiumBVN/{id}', [VerificationController::class, 'premiumBVN'])->name('premiumBVN');
+                Route::get('/plasticBVN/{id}', [VerificationController::class, 'plasticBVN'])->name('plasticBVN');
 
-            Route::get('/regularSlip/{id}', [VerificationController::class, 'regularSlip'])->name('regularSlip');
-            Route::get('/standardSlip/{id}', [VerificationController::class, 'standardSlip'])->name('standardSlip');
-            Route::get('/premiumSlip/{id}', [VerificationController::class, 'premiumSlip'])->name('premiumSlip');
-            Route::get('/basicSlip/{id}', [VerificationController::class, 'basicSlip'])->name('basicSlip');
+                Route::get('/regularSlip/{id}', [VerificationController::class, 'regularSlip'])->name('regularSlip');
+                Route::get('/standardSlip/{id}', [VerificationController::class, 'standardSlip'])->name('standardSlip');
+                Route::get('/premiumSlip/{id}', [VerificationController::class, 'premiumSlip'])->name('premiumSlip');
+                Route::get('/basicSlip/{id}', [VerificationController::class, 'basicSlip'])->name('basicSlip');
+            });
 
             // NIN Services
             Route::get('/nin-services', [ServicesController::class, 'ninServices'])->name('nin.services');
@@ -142,6 +146,8 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('nin/suspended', [SuspendedNinController::class, 'index'])->name('suspended-nin.form');
             Route::post('nin/suspended/store', [SuspendedNinController::class, 'store'])->name('suspended-nin.store');
 
+            Route::get('nin/vnin-slip', [\App\Http\Controllers\VninSlipController::class, 'index'])->name('vnin-slip');
+            Route::post('nin/vnin-slip/store', [\App\Http\Controllers\VninSlipController::class, 'store'])->name('vnin-slip.store');
 
             // Whatsapp API Support--------------------------------------------------------------------------
             Route::get('/support', function () {
@@ -229,5 +235,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'u
     Route::get('/suspended-nin-list', [SuspendedNinController::class, 'list'])->name('suspended-nin.index');
     Route::get('/view-suspended-nin/{id}/{type}/edit', [SuspendedNinController::class, 'showRequests'])->name('suspended-nin.view');
     Route::post('/requests/{id}/{type}/update-suspended-status', [SuspendedNinController::class, 'updateRequestStatus'])->name('update-suspended-nin-status');
+
+    Route::get('/vnin-slip-list', [\App\Http\Controllers\VninSlipController::class, 'list'])->name('vnin-slip.index');
+    Route::get('/view-vnin-slip/{id}/{type}/edit', [\App\Http\Controllers\VninSlipController::class, 'showRequests'])->name('vnin-slip.view');
+    Route::post('/requests/{id}/{type}/update-vnin-status', [\App\Http\Controllers\VninSlipController::class, 'updateRequestStatus'])->name('update-vnin-slip-status');
 
 });

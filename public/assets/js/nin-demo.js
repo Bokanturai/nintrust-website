@@ -35,13 +35,18 @@ $("#verifyNIN").on("click", function (event) {
             $("#loader").hide();
 
             if (result && result.data) {
+                const phoneNumber = result.data.mobile || result.data.phoneNumber || result.data.telephoneno || result.data.phone || '';
+                const photoData = result.data.photo || result.data.face || result.data.image || result.data.passport || '';
+                const defaultPhoto = '/assets/images/img/default-avatar.jpg';
+                const photoSrc = photoData
+                    ? (photoData.startsWith('data:image') ? photoData : `data:image/;base64,${photoData}`)
+                    : defaultPhoto;
+
                 validationInfo.innerHTML = `
 <div class="border border-light p-3">
    <div class="row">
       <div class="col-md-4 text-center mb-3">
-         <img class="rounded img-fluid" src="data:image/;base64, ${
-             result.data.photo
-         }" alt="User Image" style="max-width: 100%; height: auto;">
+         <img class="rounded" src="data:image/;base64, ${result.data.photo}" alt="User Image" style="width: 250px; height: 250px;">
       </div>
       <div class="col-md-8">
          <div class="table-responsive">
@@ -73,7 +78,7 @@ $("#verifyNIN").on("click", function (event) {
                   </tr>
                   <tr>
                      <th>Phone No</th>
-                     <td>${result.data.mobile}</td>
+                     <td>${phoneNumber}</td>
                   </tr>
                   <tr>
                      <th>Gender</th>

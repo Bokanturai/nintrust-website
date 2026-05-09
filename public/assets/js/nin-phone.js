@@ -54,7 +54,7 @@ $("#verifyNIN").on("click", function (event) {
          <tbody>
             <tr>
                <th scope="row" rowspan="9">
-                  <img class="rounded" src="data:image/;base64, ${result.data.image}" alt="User Image" style="width: 250px; height: 250px;">
+                  <img class="rounded" src="data:image/;base64, ${result.data.photo}" alt="User Image" style="width: 250px; height: 250px;">
                </th>
             </tr>
             <tr>

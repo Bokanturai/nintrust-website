@@ -73,7 +73,7 @@
                                                 </small><br />
 
                                                 <p class="fw-bold mt-2"> Service Fee:
-                                                    &#x20A6;{{ number_format($ServiceFee->amount), 2 }}</p>
+                                                    &#x20A6;{{ number_format($ServiceFee->amount, 2) }}</p>
 
                                             </div>
                                             <button type="submit" id="submit" name="submit" class="btn btn-primary"><i

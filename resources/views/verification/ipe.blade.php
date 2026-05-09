@@ -87,7 +87,7 @@
                                                 </small><br /> --}}
 
                                                 <p class="fw-bold mt-2"> Service Fee:
-                                                    &#x20A6;{{ number_format($ServiceFee->amount), 2 }}</p>
+                                                    &#x20A6;{{ number_format($ServiceFee->amount, 2) }}</p>
 
                                             </div>
                                             <button type="submit"
@@ -127,30 +127,33 @@
                                                                 <th scope="row">{{ $serialNumber++ }}</th>
                                                                 <td>{{ $data->trackingId }}</td>
                                                                 <td>
-
-                                                                    @if ($data->resp_code == '200')
-                                                                        <span class="badge bg-success">Sucessful</span>
-                                                                    @elseif ($data->resp_code == '400')
+                                                                    @php
+                                                                        $status = strtolower($data->status ?? 'pending');
+                                                                    @endphp
+                                                                    @if ($status == 'successful' || $status == 'success')
+                                                                        <span class="badge bg-success">Successful</span>
+                                                                    @elseif ($status == 'failed' || $status == 'rejected')
                                                                         <span class="badge bg-danger">Failed</span>
-                                                                    @elseif ($data->resp_code == '100')
+                                                                    @elseif ($status == 'pending')
                                                                         <span class="badge bg-warning">Pending</span>
                                                                     @else
-                                                                        <span class="badge bg-primary">
-                                                                            Processing
-                                                                        </span>
+                                                                        <span class="badge bg-primary">{{ ucfirst($status) }}</span>
                                                                     @endif
                                                                 </td>
                                                                 <td>{{ $data->created_at }}</td>
                                                                 <td style="white-space: normal; word-break: break-word; min-width: 200px;">{!! $data->reply ?? 'No reply yet' !!}</td>
 
-                                                                {{-- <td class="text-center">
-                                                                    @if (is_null($data->reply))
+                                                                <td class="text-center">
+                                                                    @php
+                                                                        $status = strtolower($data->status ?? 'pending');
+                                                                    @endphp
+                                                                    @if (!in_array($status, ['successful', 'success', 'failed', 'rejected']))
                                                                         <a href="{{ route('user.ipeStatus', [$data->trackingId]) }}"
                                                                            class="btn btn-sm btn-primary">
                                                                             Check Status
                                                                         </a>
                                                                     @endif
-                                                                </td> --}}
+                                                                </td>
                                                             </tr>
                                                             @php $i++ @endphp
                                                         @endforeach

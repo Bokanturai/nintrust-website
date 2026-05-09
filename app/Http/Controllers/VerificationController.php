@@ -14,6 +14,7 @@ use App\Models\Wallet;
 use App\Services\TransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class VerificationController extends Controller
@@ -41,11 +42,11 @@ class VerificationController extends Controller
             ->keyBy('service_code');
 
         // Extract specific service fees
-        $ServiceFee = $services->get('126') ?? 0.00;
-        $standard_nin_fee = $services->get('106') ?? 0.00;
-        $premium_nin_fee = $services->get('107') ?? 0.00;
-        $regular_nin_fee = $services->get('105') ?? 0.00;
-        $basic_nin_fee = $services->get('127') ?? 0.00;
+        $ServiceFee = $services->get('126') ?? new \App\Models\Service(['amount' => 0.00]);
+        $standard_nin_fee = $services->get('106') ?? new \App\Models\Service(['amount' => 0.00]);
+        $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
+        $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
+        $basic_nin_fee = $services->get('127') ?? new \App\Models\Service(['amount' => 0.00]);
 
         $user = auth()->user();
 
@@ -64,21 +65,14 @@ class VerificationController extends Controller
             'firstName' => ['required', 'string', 'max:255'],
         ]);
 
-        // NIN Services Fee
-        $ServiceFee = 0;
+        $ServiceFee = Service::getAmountByCode('126');
 
-        $ServiceFee = Service::where('service_code', '126')
-            ->where('status', 'enabled')
-            ->first();
-
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return response()->json([
                 'message' => 'Error',
                 'errors' => ['Service Error' => 'Sorry Action not Allowed !'],
             ], 422);
         }
-
-        $ServiceFee = $ServiceFee->amount;
 
         $loginUserId = auth()->user()->id;
 
@@ -99,12 +93,13 @@ class VerificationController extends Controller
                 $data = [
                     'firstName' => $request->input('firstName'),
                     'lastName' => $request->input('lastName'),
-                    'dob' => $request->input('dob'),
-                    'gender' => $request->input('gender'),
+                    'gender' => $request->input('gender') == 'MALE' ? 'M' : 'F',
+                    'dateOfBirth' => Carbon::parse($request->input('dob'))->format('d-m-Y'),
+                    'ref' => 'nintrust_' . time(),
                 ];
 
-                $url = env('BASE_URL_VERIFY_USER').'api/v1/verify-demo';
-                $token = env('VERIFY_USER_TOKEN');
+                $url = env('AREWA_URL').'/nin/demo';
+                $token = env('AREWA_TOKEN');
 
                 $headers = [
                     'Accept: application/json, text/plain, */*',
@@ -118,6 +113,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -127,7 +123,9 @@ class VerificationController extends Controller
 
                 // Check for cURL errors
                 if (curl_errno($ch)) {
-                    throw new \Exception('cURL Error: '.curl_error($ch));
+                    $error = curl_error($ch);
+                    curl_close($ch);
+                    throw new \Exception('cURL Error: '.$error);
                 }
 
                 // Close cURL session
@@ -136,40 +134,33 @@ class VerificationController extends Controller
                 $response = json_decode($response, true);
 
                 // Log response
-                Log::info('NIN DEMO Vericiation', $response);
+                Log::info('NIN DEMO Verification', ['success' => $response['success'] ?? false]);
 
-                if (isset($response['status']) && $response['status'] === self::RESP_STATUS_SUCCESS && $response['message'] !== 'norecord') {
+                // Check for success - handle nested api_response structure
+                if ((isset($response['status']) && $response['status'] === true) && 
+                    (isset($response['api_response']['status']) && $response['api_response']['status'] === true) &&
+                    (isset($response['api_response']['data']['status']) && $response['api_response']['data']['status'] === true)) {
 
-                    $data = $response['message'];
+                    // Extract data from nested structure: response.api_response.data.data
+                    $data = $response['api_response']['data']['data'] ?? [];
+                    $data['mobile'] = $data['mobile'] ?? $data['phoneNumber'] ?? $data['telephoneno'] ?? $data['phone'] ?? '';
+                    $data['photo'] = $data['photo'] ?? $data['face'] ?? $data['image'] ?? $data['passport'] ?? '';
 
-                    $this->processResponseDataForNINDEMO($data);
+                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
+                    $trx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Demo Verification', $serviceDesc, 'Wallet', 'Approved');
+
+                    $this->processResponseDataForNINDEMO($data, $loginUserId, $ServiceFee, $trx);
 
                     $balance = $wallet->balance - $ServiceFee;
 
                     Wallet::where('user_id', $loginUserId)
                         ->update(['balance' => $balance]);
 
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Demo Verification', $serviceDesc, 'Wallet', 'Approved');
-
-                    return json_encode(['status' => 'success', 'data' => $data]);
-                } elseif (isset($response['status']) && $response['status'] === self::RESP_STATUS_SUCCESS && $response['message'] === 'norecord') {
-
-                    return response()->json([
-                        'status' => 'Not Found',
-                        'errors' => ['No record found'],
-                    ], 422);
-                } elseif (isset($response['status']) && $response['status'] === 'caption') {
-
-                    return response()->json([
-                        'status' => 'Verification Failed',
-                        'errors' => ['Caption: '.$response['message']],
-                    ], 422);
+                    return response()->json(['status' => 'success', 'data' => $data]);
                 } else {
                     return response()->json([
                         'status' => 'Verification Failed',
-                        'errors' => ['Verification Failed: No need to worry, your wallet remains secure and intact. Please try again or contact support for assistance.'],
+                        'errors' => [$response['message'] ?? 'Verification Failed: Please try again or contact support for assistance.'],
                     ], 422);
                 }
             } catch (\Exception $e) {
@@ -193,21 +184,14 @@ class VerificationController extends Controller
             ]
         );
 
-        // NIN Services Fee
-        $ServiceFee = 0;
+        $ServiceFee = Service::getAmountByCode('128');
 
-        $ServiceFee = Service::where('service_code', '128')
-            ->where('status', 'enabled')
-            ->first();
-
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return response()->json([
                 'message' => 'Error',
                 'errors' => ['Service Error' => 'Sorry Action not Allowed !'],
             ], 422);
         }
-
-        $ServiceFee = $ServiceFee->amount;
 
         $loginUserId = auth()->user()->id;
 
@@ -227,8 +211,8 @@ class VerificationController extends Controller
 
                 $data = ['nin' => $request->input('nin')];
 
-                $url = env('BASE_URL_VERIFY_USER').'api/v1/verify-nin/v2';
-                $token = env('VERIFY_USER_TOKEN');
+                $url = env('AREWA_URL').'/nin/verify';
+                $token = env('AREWA_TOKEN');
 
                 $headers = [
                     'Accept: application/json, text/plain, */*',
@@ -242,6 +226,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -260,40 +245,27 @@ class VerificationController extends Controller
                 $response = json_decode($response, true);
 
                 // Log response
-                Log::info('NIN V2 Vericiation', $response);
+                Log::info('NIN V2 Verification', ['success' => $response['success'] ?? false]);
 
-                if (isset($response['status']) && $response['status'] === self::RESP_STATUS_SUCCESS && $response['message'] !== 'norecord') {
+                if ((isset($response["success"]) && $response["success"] === true) || (isset($response["status"]) && $response["status"] == "success") || (isset($response["respCode"]) && ($response["respCode"] == "111111" || $response["respCode"] == "200"))) {
 
-                    $data = $response['message'];
+                    $data = $response['data'] ?? $response['message'];
 
-                    $this->processResponseDataForNINPhone($data); // same as nin phone response
+                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
+                    $trx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN V2 Verification', $serviceDesc, 'Wallet', 'Approved');
+
+                    $this->processResponseDataForNIN($data, $loginUserId, $ServiceFee, $trx);
 
                     $balance = $wallet->balance - $ServiceFee;
 
                     Wallet::where('user_id', $loginUserId)
                         ->update(['balance' => $balance]);
 
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN V2 Verification', $serviceDesc, 'Wallet', 'Approved');
-
                     return json_encode(['status' => 'success', 'data' => $data]);
-                } elseif (isset($response['status']) && $response['status'] === self::RESP_STATUS_SUCCESS && $response['message'] === 'norecord') {
-
-                    return response()->json([
-                        'status' => 'Not Found',
-                        'errors' => ['No record found'],
-                    ], 422);
-                } elseif (isset($response['status']) && $response['status'] === 'caption') {
-
-                    return response()->json([
-                        'status' => 'Verification Failed',
-                        'errors' => ['Caption: '.$response['message']],
-                    ], 422);
                 } else {
                     return response()->json([
                         'status' => 'Verification Failed',
-                        'errors' => ['Verification Failed: No need to worry, your wallet remains secure and intact. Please try again or contact support for assistance.'],
+                        'errors' => [$response['message'] ?? 'Verification Failed: Please try again or contact support for assistance.'],
                     ], 422);
                 }
             } catch (\Exception $e) {
@@ -313,7 +285,7 @@ class VerificationController extends Controller
             ->keyBy('service_code');
 
         // Extract specific service fees
-        $ServiceFee = $services->get('112') ?? 0.00;
+        $ServiceFee = $services->get('112') ?? new \App\Models\Service(['amount' => 0.00]);
 
         $ipes = IpeRequest::where('user_id', $this->loginId)
             ->orderBy('id', 'desc')
@@ -330,8 +302,8 @@ class VerificationController extends Controller
             ->keyBy('service_code');
 
         // Extract specific service fees
-        $ServiceFee = $services->get('108') ?? 0.00;
-        $regular_nin_fee = $services->get('105') ?? 0.00;
+        $ServiceFee = $services->get('108') ?? new \App\Models\Service(['amount' => 0.00]);
+        $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
 
         return view('verification.nin-track', compact('ServiceFee', 'regular_nin_fee'));
     }
@@ -345,9 +317,9 @@ class VerificationController extends Controller
             ->keyBy('service_code');
 
         // Extract specific service fees
-        $ServiceFee = $services->get('104') ?? 0.00;
-        $standard_nin_fee = $services->get('106') ?? 0.00;
-        $premium_nin_fee = $services->get('107') ?? 0.00;
+        $ServiceFee = $services->get('104') ?? new \App\Models\Service(['amount' => 0.00]);
+        $standard_nin_fee = $services->get('106') ?? new \App\Models\Service(['amount' => 0.00]);
+        $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
 
         return view('verification.nin-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee'));
     }
@@ -361,11 +333,11 @@ class VerificationController extends Controller
             ->keyBy('service_code');
 
         // Extract specific service fees
-        $ServiceFee = $services->get('128') ?? 0.00;
-        $standard_nin_fee = $services->get('106') ?? 0.00;
-        $regular_nin_fee = $services->get('105') ?? 0.00;
-        $premium_nin_fee = $services->get('107') ?? 0.00;
-        $basic_nin_fee = $services->get('127') ?? 0.00;
+        $ServiceFee = $services->get('128') ?? new \App\Models\Service(['amount' => 0.00]);
+        $standard_nin_fee = $services->get('106') ?? new \App\Models\Service(['amount' => 0.00]);
+        $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
+        $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
+        $basic_nin_fee = $services->get('127') ?? new \App\Models\Service(['amount' => 0.00]);
 
         return view('verification.nin-verifyv2', compact('ServiceFee', 'regular_nin_fee', 'standard_nin_fee', 'premium_nin_fee', 'basic_nin_fee'));
     }
@@ -376,10 +348,10 @@ class VerificationController extends Controller
         $serviceCodes = ['101', '102', '103', '109'];
         $services = Service::whereIn('service_code', $serviceCodes)->get()->keyBy('service_code');
 
-        $BVNFee = $services->get('101') ?? 0.00;
-        $bvn_standard_fee = $services->get('102') ?? 0.00;
-        $bvn_premium_fee = $services->get('103') ?? 0.00;
-        $bvn_plastic_fee = $services->get('109') ?? 0.00;
+        $BVNFee = $services->get('101') ?? new \App\Models\Service(['amount' => 0.00]);
+        $bvn_standard_fee = $services->get('102') ?? new \App\Models\Service(['amount' => 0.00]);
+        $bvn_premium_fee = $services->get('103') ?? new \App\Models\Service(['amount' => 0.00]);
+        $bvn_plastic_fee = $services->get('109') ?? new \App\Models\Service(['amount' => 0.00]);
 
         return view('verification.bvn-verify', compact('BVNFee', 'bvn_standard_fee', 'bvn_premium_fee', 'bvn_plastic_fee'));
     }
@@ -393,11 +365,11 @@ class VerificationController extends Controller
             ->keyBy('service_code');
 
         // Extract specific service fees
-        $ServiceFee = $services->get('111') ?? 0.00;
-        $standard_nin_fee = $services->get('106') ?? 0.00;
-        $regular_nin_fee = $services->get('105') ?? 0.00;
-        $premium_nin_fee = $services->get('107') ?? 0.00;
-        $basic_nin_fee = $services->get('127') ?? 0.00;
+        $ServiceFee = $services->get('111') ?? new \App\Models\Service(['amount' => 0.00]);
+        $standard_nin_fee = $services->get('106') ?? new \App\Models\Service(['amount' => 0.00]);
+        $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
+        $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
+        $basic_nin_fee = $services->get('127') ?? new \App\Models\Service(['amount' => 0.00]);
 
         return view('verification.nin-phone-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee', 'regular_nin_fee', 'basic_nin_fee'));
     }
@@ -429,8 +401,8 @@ class VerificationController extends Controller
 
             $data = ['bvn' => $bvn];
 
-            $url = env('BASE_URL_VERIFY_USER').'api/v1/verify-bvn';
-            $token = env('VERIFY_USER_TOKEN');
+            $url = env('AREWA_URL').'/bvn/verify';
+            $token = env('AREWA_TOKEN');
             $headers = [
                 'Accept: application/json, text/plain, */*',
                 'Content-Type: application/json',
@@ -443,6 +415,7 @@ class VerificationController extends Controller
             // Set cURL options
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -460,7 +433,7 @@ class VerificationController extends Controller
 
             $response = json_decode($response, true);
 
-            if (isset($response['respCode']) && $response['respCode'] == '000') {
+            if ((isset($response["success"]) && $response["success"] === true) || (isset($response["status"]) && $response["status"] == "success") || (isset($response["respCode"]) && ($response["respCode"] == "111111" || $response["respCode"] == "200"))) {
 
                 $data = $response['data'];
 
@@ -509,21 +482,14 @@ class VerificationController extends Controller
             ]
         );
 
-        // NIN Services Fee
-        $ServiceFee = 0;
+        $ServiceFee = Service::getAmountByCode('104');
 
-        $ServiceFee = Service::where('service_code', '104')
-            ->where('status', 'enabled')
-            ->first();
-
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return response()->json([
                 'message' => 'Error',
                 'errors' => ['Service Error' => 'Sorry Action not Allowed !'],
             ], 422);
         }
-
-        $ServiceFee = $ServiceFee->amount;
 
         $loginUserId = auth()->user()->id;
 
@@ -543,8 +509,8 @@ class VerificationController extends Controller
 
                 $data = ['nin' => $request->input('nin')];
 
-                $url = env('BASE_URL_VERIFY_USER').'api/v1/verify-nin';
-                $token = env('VERIFY_USER_TOKEN');
+                $url = env('AREWA_URL').'/nin/verify';
+                $token = env('AREWA_TOKEN');
 
                 $headers = [
                     'Accept: application/json, text/plain, */*',
@@ -558,6 +524,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -575,41 +542,26 @@ class VerificationController extends Controller
 
                 $response = json_decode($response, true);
 
-                if (isset($response['respCode']) && $response['respCode'] == '000') {
+                if ((isset($response['success']) && $response['success'] === true) || (isset($response['status']) && $response['status'] == 'success') || (isset($response['respCode']) && ($response['respCode'] == '111111' || $response['respCode'] == '200'))) {
 
-                    $data = $response['data'];
+                    $data = $response['data'] ?? $response['message'];
 
-                    $this->processResponseDataForNIN($data);
+                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
+
+                    $trx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Verification', $serviceDesc, 'Wallet', 'Approved');
+
+                    $this->processResponseDataForNIN($data, $loginUserId, $ServiceFee, $trx);
 
                     $balance = $wallet->balance - $ServiceFee;
 
                     Wallet::where('user_id', $loginUserId)
                         ->update(['balance' => $balance]);
 
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Verification', $serviceDesc, 'Wallet', 'Approved');
-
                     return json_encode(['status' => 'success', 'data' => $data]);
-                } elseif ($response['respCode'] == '99120010') {
-
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $this->loginId)
-                        ->update(['balance' => $balance]);
-
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Verification', $serviceDesc, 'Wallet', 'Approved');
-
-                    return response()->json([
-                        'status' => 'Not Found',
-                        'errors' => ['Succesfully Verified with ( NIN do not exist)'],
-                    ], 422);
                 } else {
                     return response()->json([
                         'status' => 'Verification Failed',
-                        'errors' => ['Verification Failed: No need to worry, your wallet remains secure and intact. Please try again or contact support for assistance.'],
+                        'errors' => [$response['message'] ?? 'Verification Failed: Please try again or contact support for assistance.'],
                     ], 422);
                 }
             } catch (\Exception $e) {
@@ -633,21 +585,14 @@ class VerificationController extends Controller
             ]
         );
 
-        // NIN Services Fee
-        $ServiceFee = 0;
+        $ServiceFee = Service::getAmountByCode('111');
 
-        $ServiceFee = Service::where('service_code', '111')
-            ->where('status', 'enabled')
-            ->first();
-
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return response()->json([
                 'message' => 'Error',
                 'errors' => ['Service Error' => 'Sorry Action not Allowed !'],
             ], 422);
         }
-
-        $ServiceFee = $ServiceFee->amount;
 
         $loginUserId = auth()->user()->id;
 
@@ -665,10 +610,13 @@ class VerificationController extends Controller
 
             try {
 
-                $data = ['phone' => $request->input('nin')];
+                $data = [
+                    'value' => $request->input('nin'),
+                    'ref' => 'nintrust_' . time(),
+                ];
 
-                $url = env('BASE_URL_VERIFY_USER').'api/v1/verify-phone';
-                $token = env('VERIFY_USER_TOKEN');
+                $url = env('AREWA_URL').'/nin/phone';
+                $token = env('AREWA_TOKEN');
 
                 $headers = [
                     'Accept: application/json, text/plain, */*',
@@ -682,6 +630,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -699,32 +648,30 @@ class VerificationController extends Controller
 
                 $response = json_decode($response, true);
 
-                if (isset($response['respCode']) && $response['respCode'] == '000') {
+                // Check for success - handle nested api_response structure
+                if ((isset($response['status']) && $response['status'] === true) && 
+                    (isset($response['api_response']['status']) && $response['api_response']['status'] === true) &&
+                    (isset($response['api_response']['data']['status']) && $response['api_response']['data']['status'] === true)) {
 
-                    $data = $response['message'];
+                    // Extract data from nested structure: response.api_response.data.data
+                    $data = $response['api_response']['data']['data'] ?? [];
 
-                    $this->processResponseDataForNINPhone($data);
+                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
+
+                    $trx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Phone Verification', $serviceDesc, 'Wallet', 'Approved');
+
+                    $this->processResponseDataForNINPhone($data, $loginUserId, $ServiceFee, $trx);
 
                     $balance = $wallet->balance - $ServiceFee;
 
                     Wallet::where('user_id', $loginUserId)
                         ->update(['balance' => $balance]);
 
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Phone Verification', $serviceDesc, 'Wallet', 'Approved');
-
                     return json_encode(['status' => 'success', 'data' => $data]);
-                } elseif ($response['respCode'] == '103') {
-
-                    return response()->json([
-                        'status' => 'Not Found',
-                        'errors' => ['Succesfully Verified with ( NIN do not exist)'],
-                    ], 422);
                 } else {
                     return response()->json([
                         'status' => 'Verification Failed',
-                        'errors' => ['Verification Failed: No need to worry, your wallet remains secure and intact. Please try again or contact support for assistance.'],
+                        'errors' => [$response['message'] ?? 'Verification Failed: Please try again or contact support for assistance.'],
                     ], 422);
                 }
             } catch (\Exception $e) {
@@ -742,93 +689,110 @@ class VerificationController extends Controller
             'trackingId' => 'required|alpha_num|size:15',
         ]);
 
-        // NIN Services Fee
-        $ServiceFee = 0;
+        $ServiceFee = Service::getAmountByCode('112');
 
-        $ServiceFee = Service::where('service_code', '112')
-            ->where('status', 'enabled')
-            ->first();
-
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return redirect()->route('user.ipe')
                 ->with('error', 'Sorry Action not Allowed !');
         }
 
-        $ServiceFee = $ServiceFee->amount;
-
         $loginUserId = auth()->user()->id;
+        $trackingId = $request->input('trackingId');
 
-        // Check if wallet is funded
         $wallet = Wallet::where('user_id', $loginUserId)->first();
-        $wallet_balance = $wallet->balance;
-        $balance = 0;
+        if (! $wallet) {
+            return redirect()->route('user.ipe')
+                ->with('error', 'Wallet not found.');
+        }
 
-        if ($wallet_balance < $ServiceFee) {
-
+        if ($wallet->balance < $ServiceFee) {
             return redirect()->route('user.ipe')
                 ->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
-        } else {
+        }
 
-            try {
+        $existingRequest = IpeRequest::where('user_id', $loginUserId)
+            ->where('trackingId', $trackingId)
+            ->exists();
 
-                $data = ['trackingId' => $request->input('trackingId')];
+        if ($existingRequest) {
+            return redirect()->route('user.ipe')
+                ->with('error', 'This tracking number has already been submitted.');
+        }
 
-                // $url = env('BASE_URL_VERIFY_USER').'api/v1/ipe';
-                // $token = env('VERIFY_USER_TOKEN');
+        try {
+            $data = [
+                'field_code' => '002',
+                'tracking_id' => $trackingId,
+                'description' => 'NINTrust IPE Request'
+            ];
 
-                // $headers = [
-                //     'Accept: application/json, text/plain, */*',
-                //     'Content-Type: application/json',
-                //     "Authorization: Bearer $token",
-                // ];
+            $url = env('AREWA_URL').'/nin/ipe';
+            $token = env('AREWA_TOKEN');
 
-                // // Initialize cURL
-                // $ch = curl_init();
+            $headers = [
+                'Accept: application/json, text/plain, */*',
+                'Content-Type: application/json',
+                "Authorization: Bearer $token",
+            ];
 
-                // Set cURL options
-                // curl_setopt($ch, CURLOPT_URL, $url);
-                // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                // curl_setopt($ch, CURLOPT_POST, true);
-                // curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-                // curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 
-                // // Execute request
-                // $response = curl_exec($ch);
-
-                // // Check for cURL errors
-                // if (curl_errno($ch)) {
-                //     throw new \Exception('cURL Error: '.curl_error($ch));
-                // }
-
-                // // Close cURL session
-                // curl_close($ch);
-
-                // $response = json_decode($response, true);
-
-                // if (isset($response['status']) && $response['status'] === true) {
-
-
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
-
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $tnx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'IPE Request', $serviceDesc, 'Wallet', 'Approved');
-
-                    $this->processResponseDataIpe($loginUserId, $tnx->id, $request->input('trackingId'));
-
-                    return redirect()->route('user.ipe')
-                        ->with('success', 'IPE request is successful');
-                // } else {
-                //     return redirect()->route('user.ipe')
-                //         ->with('error', 'IPE request is not successful');
-                // }
-            } catch (\Exception $e) {
-                return redirect()->route('user.ipe')
-                    ->with('error', 'An error occurred while making the API request');
+            $response = curl_exec($ch);
+            if (curl_errno($ch)) {
+                $error = curl_error($ch);
+                curl_close($ch);
+                throw new \Exception('cURL Error: '.$error);
             }
+
+            curl_close($ch);
+
+            $response = json_decode($response, true);
+            if (! is_array($response)) {
+                throw new \Exception('Invalid response from the IPE API.');
+            }
+
+            $status = strtolower($response['status'] ?? 'pending');
+            $respCode = $response['respCode'] ?? $response['response_code'] ?? null;
+            $comment = $response['comment'] ?? $response['message'] ?? 'No response message returned.';
+
+            $isAccepted = (isset($response['success']) && $response['success'] === true)
+                || in_array($status, ['success', 'successful'], true)
+                || in_array($respCode, ['111111', '200'], true);
+
+            if (! $isAccepted) {
+                throw new \Exception('IPE request is not successful: ' . $comment);
+            }
+
+            DB::transaction(function () use ($loginUserId, $wallet, $ServiceFee, $trackingId, $status, $respCode, $comment) {
+                $newBalance = $wallet->balance - $ServiceFee;
+                Wallet::where('user_id', $loginUserId)->update(['balance' => $newBalance]);
+
+                $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
+                $tnx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'IPE Request', $serviceDesc, 'Wallet', 'Approved');
+
+                IpeRequest::create([
+                    'user_id' => $loginUserId,
+                    'tnx_id' => $tnx->id,
+                    'trackingId' => $trackingId,
+                    'status' => 'processing',
+                    'reply' => $comment,
+                    'resp_code' => $respCode,
+                ]);
+            });
+
+            return redirect()->route('user.ipe')
+                ->with('success', 'IPE request submitted successfully. Please check status shortly.');
+        } catch (\Exception $e) {
+            Log::error('IPE request failed for user '.$loginUserId.' tracking '.$trackingId.': '.$e->getMessage());
+
+            return redirect()->route('user.ipe')
+                ->with('error', $e->getMessage());
         }
     }
 
@@ -838,8 +802,8 @@ class VerificationController extends Controller
 
             $data = ['trackingId' => $trackingId];
 
-            $url = env('BASE_URL_VERIFY_USER').'api/v1/ipe-status';
-            $token = env('VERIFY_USER_TOKEN');
+            $url = env('AREWA_URL').'/nin/ipe?tracking_id=' . $trackingId;
+            $token = env('AREWA_TOKEN');
 
             $headers = [
                 'Accept: application/json, text/plain, */*',
@@ -853,16 +817,18 @@ class VerificationController extends Controller
             // Set cURL options
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_HTTPGET, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 
             // Execute request
             $response = curl_exec($ch);
 
             // Check for cURL errors
             if (curl_errno($ch)) {
-                throw new \Exception('cURL Error: '.curl_error($ch));
+                $error = curl_error($ch);
+                curl_close($ch);
+                throw new \Exception('cURL Error: '.$error);
             }
 
             // Close cURL session
@@ -870,64 +836,58 @@ class VerificationController extends Controller
 
             $response = json_decode($response, true);
 
-            if (isset($response['status']) && $response['status'] === true) {
-                $data = $response['response'];
+            if (! is_array($response)) {
+                return redirect()->route('user.ipe')->with('error', 'Invalid response from the IPE API.');
+            }
 
-                if ($data['resp_code'] === '200') {
+            $status = strtolower($response['status'] ?? 'pending');
+            $respCode = $response['respCode'] ?? $response['response_code'] ?? null;
+            $comment = $response['comment'] ?? $response['message'] ?? 'No response message returned.';
 
-                    IpeRequest::where('trackingId', $trackingId)
-                        ->update(['reply' => $data['reply'] ?? '']);
+            $isSuccessful = (isset($response['success']) && $response['success'] === true)
+                || $status === 'success'
+                || $status === 'successful'
+                || in_array($respCode, ['111111', '200'], true);
 
-                    return redirect()->route('user.ipe')
-                        ->with('success', 'IPE request is successful, check the reply section');
-                } elseif ($data['resp_code'] === '400') {
+            if ($isSuccessful) {
+                IpeRequest::where('trackingId', $trackingId)
+                    ->where('user_id', $this->loginId)
+                    ->update(['reply' => $comment, 'status' => 'successful', 'resp_code' => $respCode]);
 
-                    // process refund & NIN Services Fee
-                    $ServiceFee = 0;
+                return redirect()->route('user.ipe')
+                    ->with('success', 'IPE request is successful: ' . $comment);
+            }
 
-                    $ServiceFee = Service::where('service_code', '112')
-                        ->where('status', 'enabled')
-                        ->first();
-
-                    if (! $ServiceFee) {
-                        return redirect()->route('user.ipe')
-                            ->with('error', 'Sorry Action not Allowed !');
-                    }
-
-                    $ServiceFee = $ServiceFee->amount;
-
+            if ($status === 'rejected' || $status === 'failed') {
+                // process refund
+                $ServiceFee = Service::getAmountByCode('112');
+                if ($ServiceFee) {
                     $wallet = Wallet::where('user_id', $this->loginId)->first();
-
-                    $balance = $wallet->balance + $ServiceFee;
-
-                    // Check if already refunded
-                    $refunded = IpeRequest::where('trackingId', $trackingId)
+                    $requestRecord = IpeRequest::where('trackingId', $trackingId)
+                        ->where('user_id', $this->loginId)
                         ->whereNull('refunded_at')
                         ->first();
 
-                    if ($refunded) {
-                        Wallet::where('user_id', $this->loginId)
-                            ->update(['balance' => $balance]);
-
+                    if ($requestRecord) {
+                        $balance = $wallet->balance + $ServiceFee;
+                        Wallet::where('user_id', $this->loginId)->update(['balance' => $balance]);
                         IpeRequest::where('trackingId', $trackingId)
-                            ->update(['refunded_at' => Carbon::now(), 'reply' => 'Refunded']);
+                            ->where('user_id', $this->loginId)
+                            ->update(['refunded_at' => Carbon::now(), 'reply' => $comment, 'status' => 'failed', 'resp_code' => $respCode]);
 
                         $this->transactionService->createTransaction($this->loginId, $ServiceFee, 'IPE Refund', "IPE Refund for Tracking ID: {$trackingId}", 'Wallet', 'Approved');
                     }
-
-                    return redirect()->route('user.ipe')
-                        ->with('error', $response['message']);
-                } else {
-                    return redirect()->route('user.ipe')
-                        ->with('error', $response['message']);
                 }
-            } elseif (isset($response['status']) && $response['status'] === false) {
-                return redirect()->route('user.ipe')
-                    ->with('error', $response['message']);
-            } else {
-                return redirect()->route('user.ipe')
-                    ->with('error', 'Unexpected error occurred');
+
+                return redirect()->route('user.ipe')->with('error', 'IPE Request Failed: ' . $comment);
             }
+
+            // Update any other statuses as processing/pending
+            $normalizedStatus = in_array($status, ['pending', 'processing'], true) ? $status : 'processing';
+            IpeRequest::where('trackingId', $trackingId)
+                ->where('user_id', $this->loginId)
+                ->update(['status' => $normalizedStatus, 'reply' => $comment, 'resp_code' => $respCode]);
+            return redirect()->route('user.ipe')->with('success', 'IPE Status: ' . ucfirst($normalizedStatus));
         } catch (\Exception $e) {
 
             return redirect()->route('user.ipe')
@@ -942,8 +902,8 @@ class VerificationController extends Controller
 
         // BVN Services Fee
         $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '101')->where('status', 'enabled')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('101');
+
 
         if (! $ServiceFee) {
             return response()->json([
@@ -970,8 +930,8 @@ class VerificationController extends Controller
 
                 $data = ['bvn' => $request->input('bvn')];
 
-                $url = env('BASE_URL_VERIFY_USER').'api/v1/verify-bvn';
-                $token = env('VERIFY_USER_TOKEN');
+                $url = env('AREWA_URL').'/bvn/verify';
+                $token = env('AREWA_TOKEN');
 
                 $headers = [
                     'Accept: application/json, text/plain, */*',
@@ -985,6 +945,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -1002,20 +963,20 @@ class VerificationController extends Controller
 
                 $response = json_decode($response, true);
 
-                if (isset($response['respCode']) && $response['respCode'] == '000') {
+                if ((isset($response["success"]) && $response["success"] === true) || (isset($response["status"]) && $response["status"] == "success") || (isset($response["respCode"]) && ($response["respCode"] == "111111" || $response["respCode"] == "200"))) {
 
                     $data = $response['data'];
 
-                    $this->processResponseDataForBVN($data);
+                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
+
+                    $trx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'BVN Verification', $serviceDesc, 'Wallet', 'Approved');
+
+                    $this->processResponseDataForBVN($data, $loginUserId, $ServiceFee, $trx);
 
                     $balance = $wallet->balance - $ServiceFee;
 
                     Wallet::where('user_id', $loginUserId)
                         ->update(['balance' => $balance]);
-
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'BVN Verification', $serviceDesc, 'Wallet', 'Approved');
 
                     return json_encode(['status' => 'success', 'data' => $data]);
                 } elseif ($response['respCode'] == '99120010') {
@@ -1055,28 +1016,20 @@ class VerificationController extends Controller
             'trackingId' => 'required|alpha_num|size:15',
         ]);
 
-        // NIN Services Fee
-        $ServiceFee = 0;
+        $ServiceFee = Service::getAmountByCode('108');
 
-        $ServiceFee = Service::where('service_code', '108')
-            ->where('status', 'enabled')
-            ->first();
-
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return response()->json([
                 'message' => 'Error',
                 'errors' => ['Service Error' => 'Sorry Action not Allowed !'],
             ], 422);
         }
 
-        $ServiceFee = $ServiceFee->amount;
-
         $loginUserId = auth()->user()->id;
 
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $loginUserId)->first();
         $wallet_balance = $wallet->balance;
-        $balance = 0;
 
         if ($wallet_balance < $ServiceFee) {
             return response()->json([
@@ -1087,14 +1040,12 @@ class VerificationController extends Controller
 
             try {
 
-                $data = ['trackingId' => $request->input('trackingId')];
-
-                $url = env('BASE_URL_VERIFY_USER').'api/v1/tracking-nin';
-                $token = env('VERIFY_USER_TOKEN');
+                $trackingId = $request->input('trackingId');
+                $url = env('AREWA_URL')."/nin/verify?tracking_id={$trackingId}";
+                $token = env('AREWA_TOKEN');
 
                 $headers = [
-                    'Accept: application/json, text/plain, */*',
-                    'Content-Type: application/json',
+                    'Accept: application/json',
                     "Authorization: Bearer $token",
                 ];
 
@@ -1104,9 +1055,8 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 
                 // Execute request
                 $response = curl_exec($ch);
@@ -1121,41 +1071,26 @@ class VerificationController extends Controller
 
                 $response = json_decode($response, true);
 
-                if (isset($response['respCode']) && $response['respCode'] == '000') {
+                if ((isset($response["success"]) && $response["success"] === true) || (isset($response["status"]) && $response["status"] == "success") || (isset($response["respCode"]) && ($response["respCode"] == "111111" || $response["respCode"] == "200"))) {
 
-                    $data = $response['message'];
+                    $data = $response['data'] ?? $response['message'];
 
-                    $this->processResponseDataForNINTracking($data);
+                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
+
+                    $trx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Personalize', $serviceDesc, 'Wallet', 'Approved');
+
+                    $this->processResponseDataForNINTracking($data, $loginUserId, $ServiceFee, $trx);
 
                     $balance = $wallet->balance - $ServiceFee;
 
                     Wallet::where('user_id', $loginUserId)
                         ->update(['balance' => $balance]);
 
-                    $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
-
-                    $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Personalize', $serviceDesc, 'Wallet', 'Approved');
-
                     return json_encode(['status' => 'success', 'data' => $data]);
-                } elseif ($response['respCode'] == '103') {
-
-                    // $balance = $wallet->balance - $ServiceFee;
-
-                    // Wallet::where('user_id', $this->loginId)
-                    //     ->update(['balance' => $balance]);
-
-                    // $serviceDesc = 'Wallet debitted with a service fee of ₦' . number_format($ServiceFee, 2);
-
-                    // $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'NIN Verification', $serviceDesc,  'Wallet', 'Approved');
-
-                    return response()->json([
-                        'status' => 'Not Found',
-                        'errors' => ['Succesfully Verified with ( NIN do not exist)'],
-                    ], 422);
                 } else {
                     return response()->json([
                         'status' => 'Verification Failed',
-                        'errors' => ['Verification Failed: No need to worry, your wallet remains secure and intact. Please try again or contact support for assistance.'],
+                        'errors' => [$response['message'] ?? 'Verification Failed: Please try again or contact support for assistance.'],
                     ], 422);
                 }
             } catch (\Exception $e) {
@@ -1167,96 +1102,185 @@ class VerificationController extends Controller
         }
     }
 
-    public function processResponseDataForNIN($data)
+    public function processResponseDataForNIN($data, $userId = null, $amount = 0, $trx = null)
     {
-
-        Verification::create([
-            'idno' => $data['nin'],
+        return Verification::create([
+            'user_id' => $userId ?? auth()->user()->id,
+            'idno' => $data['nin'] ?? '',
             'type' => 'NIN',
-            'nin' => $data['nin'],
-            'first_name' => $data['firstName'],
-            'middle_name' => $data['middleName'],
-            'last_name' => $data['surname'],
-            'dob' => $data['birthDate'],
-            'gender' => $data['gender'],
-            'phoneno' => $data['telephoneNo'],
-            'photo' => $data['photo'],
+            'nin' => $data['nin'] ?? '',
+            'reference' => $trx ? $trx->referenceId : null,
+            'transaction_id' => $trx ? $trx->id : null,
+            'amount' => $amount,
+            'status' => 'successful',
+            'submission_date' => now(),
+            
+            // Name mapping - directly from API response
+            'firstname' => $data['firstName'] ?? '',
+            'middlename' => $data['middleName'] ?? '',
+            'surname' => $data['surname'] ?? '',
+            'first_name' => $data['firstName'] ?? '',
+            'middle_name' => $data['middleName'] ?? '',
+            'last_name' => $data['surname'] ?? '',
+            
+            // Date of birth - handle various formats
+            'dob' => isset($data['birthDate']) ? (strpos($data['birthDate'], '-') !== false ? (strlen(explode('-', $data['birthDate'])[0]) == 4 ? $data['birthDate'] : \Carbon\Carbon::createFromFormat('d-m-Y', $data['birthDate'])->format('Y-m-d')) : $data['birthDate']) : '1970-01-01',
+            'birthdate' => $data['birthDate'] ?? '1970-01-01',
+            
+            // Personal details
+            'gender' => $data['gender'] ?? '',
+            'phoneno' => $data['phoneNumber'] ?? '',
+            'telephoneno' => $data['phoneNumber'] ?? '',
+            'photo' => $data['photo'] ?? '',
+            'photo_path' => $data['photo'] ?? '',
         ]);
     }
 
-    public function processResponseDataForBVN($data)
+    public function processResponseDataForBVN($data, $userId = null, $amount = 0, $trx = null)
     {
-        $user = Verification::create(
-            [
-                'idno' => $data['bvn'],
-                'type' => 'BVN',
-                'nin' => '',
-                'first_name' => $data['firstName'],
-                'middle_name' => $data['middleName'],
-                'last_name' => $data['lastName'],
-                'phoneno' => $data['phoneNumber'],
-                'dob' => $data['birthday'],
-                'gender' => $data['gender'],
-                'photo' => $data['photo'],
-            ]
-        );
+        return Verification::create([
+            'user_id' => $userId ?? auth()->user()->id,
+            'idno' => $data['bvn'] ?? '',
+            'type' => 'BVN',
+            'reference' => $trx ? $trx->referenceId : null,
+            'transaction_id' => $trx ? $trx->id : null,
+            'amount' => $amount,
+            'status' => 'successful',
+            'submission_date' => now(),
+            
+            // Name mapping
+            'firstname' => $data['firstName'] ?? '',
+            'middlename' => $data['middleName'] ?? '',
+            'surname' => $data['lastName'] ?? '',
+            'first_name' => $data['firstName'] ?? '',
+            'middle_name' => $data['middleName'] ?? '',
+            'last_name' => $data['lastName'] ?? '',
+            
+            // Other details
+            'phoneno' => $data['phoneNumber'] ?? '',
+            'telephoneno' => $data['phoneNumber'] ?? '',
+            'dob' => $data['birthday'] ?? '',
+            'birthdate' => $data['birthday'] ?? '',
+            'gender' => $data['gender'] ?? '',
+            'photo' => $data['photo'] ?? '',
+            'photo_path' => $data['photo'] ?? '',
+            'enrollmentBank' => $data['enrollmentBank'] ?? '',
+            'enrollmentBranch' => $data['enrollmentBranch'] ?? '',
+        ]);
     }
 
-    public function processResponseDataForNINTracking($data)
+    public function processResponseDataForNINTracking($data, $userId = null, $amount = 0, $trx = null)
     {
-
-        $user = Verification::create([
-            'idno' => $data['nin'],
+        return Verification::create([
+            'user_id' => $userId ?? auth()->user()->id,
+            'idno' => $data['nin'] ?? '',
             'type' => 'NIN',
-            'nin' => $data['nin'],
-            'trackingId' => $data['trackingid'],
-            'first_name' => $data['firstname'],
-            'middle_name' => $data['middlename'],
-            'last_name' => $data['lastname'],
+            'nin' => $data['nin'] ?? '',
+            'reference' => $trx ? $trx->referenceId : null,
+            'transaction_id' => $trx ? $trx->id : null,
+            'amount' => $amount,
+            'status' => 'successful',
+            'submission_date' => now(),
+            'trackingId' => $data['trackingid'] ?? '',
+            
+            // Name mapping
+            'firstname' => $data['firstname'] ?? '',
+            'middlename' => $data['middlename'] ?? '',
+            'surname' => $data['lastname'] ?? '',
+            'first_name' => $data['firstname'] ?? '',
+            'middle_name' => $data['middlename'] ?? '',
+            'last_name' => $data['lastname'] ?? '',
+            
             'dob' => '1970-01-01',
-            'gender' => $data['gender'] == 'm' || $data['gender'] == 'Male' ? 'Male' : 'Female',
-            'state' => $data['state'],
-            'lga' => $data['town'],
-            'address' => $data['address'],
-            'photo' => $data['face'],
+            'birthdate' => '1970-01-01',
+            'gender' => ($data['gender'] ?? '') == 'm' || ($data['gender'] ?? '') == 'Male' ? 'Male' : 'Female',
+            'state' => $data['state'] ?? '',
+            'self_origin_state' => $data['state'] ?? '',
+            'lga' => $data['town'] ?? '',
+            'self_origin_lga' => $data['town'] ?? '',
+            'address' => $data['address'] ?? '',
+            'residentialAddress' => $data['address'] ?? '',
+            'photo' => $data['face'] ?? '',
+            'photo_path' => $data['face'] ?? '',
         ]);
     }
 
-    public function processResponseDataForNINPhone($data)
+    public function processResponseDataForNINPhone($data, $userId = null, $amount = 0, $trx = null)
     {
-
         try {
-            $user = Verification::create([
-                'user_id' => auth()->user()->id,
-                'idno' => $data['nin'],
+            return Verification::create([
+                'user_id' => $userId ?? auth()->user()->id,
+                'idno' => $data['nin'] ?? '',
                 'type' => 'NIN',
-                'nin' => $data['nin'],
-                'trackingId' => $data['trackingId'],
-                'first_name' => $data['firstname'],
-                'middle_name' => $data['middlename'],
-                'last_name' => $data['surname'],
-                'phoneno' => $data['telephoneno'],
-                'dob' => \Carbon\Carbon::createFromFormat('d-m-Y', $data['birthdate'])->format('Y-m-d'),
-                'gender' => $data['gender'] == 'm' || $data['gender'] == 'Male' ? 'Male' : 'Female',
-                'state' => $data['self_origin_state'],
-                'lga' => $data['self_origin_lga'],
-                'address' => $data['residence_AdressLine1'],
-                'photo' => $data['image'],
-                'town' => $data['self_origin_place'],
-                'signature' => $data['signature'],
-                'residence_state' => $data['residence_state'],
-                'residence_lga' => $data['residence_lga'],
-
+                'nin' => $data['nin'] ?? '',
+                'reference' => $trx ? $trx->referenceId : null,
+                'transaction_id' => $trx ? $trx->id : null,
+                'amount' => $amount,
+                'status' => 'successful',
+                'submission_date' => now(),
+                'trackingId' => $data['trackingId'] ?? '',
+                
+                // Name mapping - directly from API response
+                'firstname' => $data['firstname'] ?? '',
+                'middlename' => '', // API doesn't provide middlename in phone response
+                'surname' => $data['surname'] ?? '',
+                'first_name' => $data['firstname'] ?? '',
+                'middle_name' => '',
+                'last_name' => $data['surname'] ?? '',
+                
+                // Contact information
+                'phoneno' => $data['telephoneno'] ?? '',
+                'telephoneno' => $data['telephoneno'] ?? '',
+                'email' => $data['email'] ?? '',
+                
+                // Date of birth - handle d-m-Y format from API
+                'dob' => isset($data['birthdate']) ? (strpos($data['birthdate'], '-') !== false ? \Carbon\Carbon::createFromFormat('d-m-Y', $data['birthdate'])->format('Y-m-d') : $data['birthdate']) : '1970-01-01',
+                'birthdate' => $data['birthdate'] ?? '1970-01-01',
+                
+                // Personal details
+                'gender' => ($data['gender'] ?? '') == 'm' ? 'Male' : 'Female',
+                'title' => $data['title'] ?? '',
+                'maritalstatus' => $data['maritalstatus'] ?? '',
+                'religion' => $data['religion'] ?? '',
+                'profession' => $data['profession'] ?? '',
+                'educationallevel' => $data['educationallevel'] ?? '',
+                'heigth' => $data['heigth'] ?? '',
+                
+                // Birth information
+                'birthstate' => $data['birthstate'] ?? '',
+                'birthlga' => $data['birthlga'] ?? '',
+                'birthcountry' => $data['birthcountry'] ?? '',
+                
+                // Residence information
+                'residence_state' => $data['residence_state'] ?? '',
+                'residence_lga' => $data['residence_lga'] ?? '',
+                'residence_town' => $data['residence_Town'] ?? '',
+                'address' => $data['residence_AdressLine1'] ?? '',
+                'residentialAddress' => $data['residence_AdressLine1'] ?? '',
+                
+                // Origin information
+                'self_origin_state' => $data['self_origin_state'] ?? '',
+                'self_origin_lga' => $data['self_origin_lga'] ?? '',
+                
+                // NOK information
+                'nok_firstname' => $data['nok_firstname'] ?? '',
+                'nok_middlename' => $data['nok_middlename'] ?? '',
+                'nok_surname' => $data['nok_surname'] ?? '',
+                'nok_address1' => $data['nok_address1'] ?? '',
+                'nok_lga' => $data['nok_lga'] ?? '',
+                'nok_state' => $data['nok_state'] ?? '',
+                'nok_town' => $data['nok_town'] ?? '',
+                'nok_postalcode' => $data['nok_postalcode'] ?? '',
+                
+                // Documents
+                'photo' => $data['photo'] ?? '',
+                'photo_path' => $data['photo'] ?? '',
+                'signature' => $data['signature'] ?? '',
+                'signature_path' => $data['signature'] ?? '',
             ]);
         } catch (\Exception $e) {
-
             Log::error('Verification creation failed: '.$e->getMessage());
-
-            return response()->json([
-                'status' => false,
-                'message' => 'Failed to create verification record.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return null;
         }
     }
 
@@ -1269,52 +1293,87 @@ class VerificationController extends Controller
                 'trackingId' => $trackingNo,
             ]);
         } catch (\Exception $e) {
-
-            Log::error('Request creation failed: '.$e->getMessage());
-
-            return response()->json([
-                'status' => false,
-                'message' => 'Failed to create Ipe Request.',
-                'error' => $e->getMessage(),
-            ], 500);
+            Log::error('IPE Request creation failed: '.$e->getMessage());
+            throw $e; // Re-throw to be handled by caller
         }
     }
 
-    public function processResponseDataForNINDEMO($data)
+    public function processResponseDataForNINDEMO($data, $userId = null, $amount = 0, $trx = null)
     {
-
         try {
-            Verification::create([
-                'user_id' => auth()->user()->id,
-                'idno' => $data['idNumber'],
+            return Verification::create([
+                'user_id' => $userId ?? auth()->user()->id,
+                'idno' => $data['nin'] ?? '',
                 'type' => 'NIN',
-                'nin' => $data['idNumber'],
-                'trackingId' => $data['trackingId'],
-                'first_name' => $data['firstName'],
-                'middle_name' => $data['middleName'],
-                'last_name' => $data['lastName'],
-                'phoneno' => $data['mobile'],
-                'dob' => \Carbon\Carbon::createFromFormat('d-m-Y', $data['dateOfBirth'])->format('Y-m-d'),
-                'gender' => $data['gender'] == 'm' || $data['gender'] == 'Male' ? 'Male' : 'Female',
-                'state' => $data['self_origin_state'],
-                'lga' => $data['self_origin_lga'],
-                'town' => $data['self_origin_place'],
-                'address' => $data['addressLine'],
-                'photo' => $data['photo'],
-                'signature' => $data['signature'],
-                'residence_state' => $data['residence_state'],
-                'residence_lga' => $data['residence_lga'],
-
+                'nin' => $data['nin'] ?? '',
+                'reference' => $trx ? $trx->referenceId : null,
+                'transaction_id' => $trx ? $trx->id : null,
+                'amount' => $amount,
+                'status' => 'successful',
+                'submission_date' => now(),
+                'trackingId' => $data['trackingId'] ?? '',
+                
+                // Name mapping - directly from API response
+                'firstname' => $data['firstname'] ?? '',
+                'middlename' => $data['middlename'] ?? '',
+                'surname' => $data['surname'] ?? '',
+                'first_name' => $data['firstname'] ?? '',
+                'middle_name' => $data['middlename'] ?? '',
+                'last_name' => $data['surname'] ?? '',
+                
+                // Contact information
+                'phoneno' => $data['telephoneno'] ?? '',
+                'telephoneno' => $data['telephoneno'] ?? '',
+                'email' => $data['email'] ?? '',
+                
+                // Date of birth - handle d-m-Y format from API
+                'dob' => isset($data['birthdate']) ? (strpos($data['birthdate'], '-') !== false ? \Carbon\Carbon::createFromFormat('d-m-Y', $data['birthdate'])->format('Y-m-d') : $data['birthdate']) : '1970-01-01',
+                'birthdate' => $data['birthdate'] ?? '1970-01-01',
+                
+                // Personal details
+                'gender' => ($data['gender'] ?? '') == 'm' ? 'Male' : 'Female',
+                'title' => $data['title'] ?? '',
+                'maritalstatus' => $data['maritalstatus'] ?? '',
+                'religion' => $data['religion'] ?? '',
+                'profession' => $data['profession'] ?? '',
+                'educationallevel' => $data['educationallevel'] ?? '',
+                'heigth' => $data['heigth'] ?? '',
+                
+                // Birth information
+                'birthstate' => $data['birthstate'] ?? '',
+                'birthlga' => $data['birthlga'] ?? '',
+                'birthcountry' => $data['birthcountry'] ?? '',
+                
+                // Residence information
+                'residence_state' => $data['residence_state'] ?? '',
+                'residence_lga' => $data['residence_lga'] ?? '',
+                'residence_town' => $data['residence_Town'] ?? '',
+                'address' => $data['residence_AdressLine1'] ?? '',
+                'residentialAddress' => $data['residence_AdressLine1'] ?? '',
+                
+                // Origin information
+                'self_origin_state' => $data['self_origin_state'] ?? '',
+                'self_origin_lga' => $data['self_origin_lga'] ?? '',
+                
+                // NOK information
+                'nok_firstname' => $data['nok_firstname'] ?? '',
+                'nok_middlename' => $data['nok_middlename'] ?? '',
+                'nok_surname' => $data['nok_surname'] ?? '',
+                'nok_address1' => $data['nok_address1'] ?? '',
+                'nok_lga' => $data['nok_lga'] ?? '',
+                'nok_state' => $data['nok_state'] ?? '',
+                'nok_town' => $data['nok_town'] ?? '',
+                'nok_postalcode' => $data['nok_postalcode'] ?? '',
+                
+                // Documents
+                'photo' => $data['photo'] ?? '',
+                'photo_path' => $data['photo'] ?? '',
+                'signature' => $data['signature'] ?? '',
+                'signature_path' => $data['signature'] ?? '',
             ]);
         } catch (\Exception $e) {
-
             Log::error('Verification creation failed: '.$e->getMessage());
-
-            return response()->json([
-                'status' => false,
-                'message' => 'Failed to create verification record.',
-                'error' => $e->getMessage(),
-            ], 500);
+            return null;
         }
     }
 
@@ -1322,9 +1381,7 @@ class VerificationController extends Controller
     {
 
         // NIN Services Fee
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '105')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('105');
 
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $this->loginId)->first();
@@ -1358,9 +1415,7 @@ class VerificationController extends Controller
     {
 
         // NIN Services Fee
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '106')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('106');
 
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $this->loginId)->first();
@@ -1393,9 +1448,7 @@ class VerificationController extends Controller
     public function premiumSlip($nin_no)
     {
         // NIN Services Fee
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '107')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('107');
 
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $this->loginId)->first();
@@ -1429,9 +1482,7 @@ class VerificationController extends Controller
     {
 
         // BVN Services Fee
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '103')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('103');
 
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $this->loginId)->first();
@@ -1476,9 +1527,7 @@ class VerificationController extends Controller
     public function standardBVN($bvnno)
     {
 
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '102')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('102');
 
         $wallet = Wallet::where('user_id', $this->loginId)->first();
         $wallet_balance = $wallet->balance;
@@ -1522,9 +1571,7 @@ class VerificationController extends Controller
     public function plasticBVN($bvnno)
     {
         // Services Fee
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '109')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('109');
 
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $this->loginId)->first();
@@ -1557,9 +1604,7 @@ class VerificationController extends Controller
     public function basicSlip($nin_no)
     {
         // NIN Services Fee
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '127')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('127');
 
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $this->loginId)->first();
@@ -1596,7 +1641,7 @@ class VerificationController extends Controller
             ->get()
             ->keyBy('service_code');
 
-        $ServiceFee = $services->get('133') ?? 0.00;
+        $ServiceFee = $services->get('133') ?? new \App\Models\Service(['amount' => 0.00]);
 
         $bvns = BvnPhoneSearch::where('user_id', $this->loginId)
             ->orderBy('id', 'desc')
@@ -1612,19 +1657,12 @@ class VerificationController extends Controller
             'name' => 'required|string',
         ]);
 
-        // NIN Services Fee
-        $ServiceFee = 0;
+        $ServiceFee = Service::getAmountByCode('133');
 
-        $ServiceFee = Service::where('service_code', '133')
-            ->where('status', 'enabled')
-            ->first();
-
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return redirect()->route('user.bvn-phone-search')
                 ->with('error', 'Sorry Action not Allowed !');
         }
-
-        $ServiceFee = $ServiceFee->amount;
 
         $loginUserId = auth()->user()->id;
 
@@ -1669,10 +1707,10 @@ class VerificationController extends Controller
         $serviceCodes = ['134', '102', '103', '109'];
         $services = Service::whereIn('service_code', $serviceCodes)->get()->keyBy('service_code');
 
-        $BVNFee = $services->get('134') ?? 0.00;
-        $bvn_standard_fee = $services->get('102') ?? 0.00;
-        $bvn_premium_fee = $services->get('103') ?? 0.00;
-        $bvn_plastic_fee = $services->get('109') ?? 0.00;
+        $BVNFee = $services->get('134') ?? new \App\Models\Service(['amount' => 0.00]);
+        $bvn_standard_fee = $services->get('102') ?? new \App\Models\Service(['amount' => 0.00]);
+        $bvn_premium_fee = $services->get('103') ?? new \App\Models\Service(['amount' => 0.00]);
+        $bvn_plastic_fee = $services->get('109') ?? new \App\Models\Service(['amount' => 0.00]);
 
         return view('verification.bvn-phone-verify', compact('BVNFee', 'bvn_standard_fee', 'bvn_premium_fee', 'bvn_plastic_fee'));
     }
@@ -1682,12 +1720,9 @@ class VerificationController extends Controller
 
         $request->validate(['phoneNumber' => 'required|numeric|digits:11']);
 
-        // BVN Services Fee
-        $ServiceFee = 0;
-        $ServiceFee = Service::where('service_code', '134')->where('status', 'enabled')->first();
-        $ServiceFee = $ServiceFee->amount;
+        $ServiceFee = Service::getAmountByCode('134');
 
-        if (! $ServiceFee) {
+        if ($ServiceFee === 0) {
             return response()->json([
                 'message' => 'Error',
                 'errors' => ['Service Error' => 'Sorry Action not Allowed !'],
@@ -1699,7 +1734,6 @@ class VerificationController extends Controller
         // Check if wallet is funded
         $wallet = Wallet::where('user_id', $loginUserId)->first();
         $wallet_balance = $wallet->balance;
-        $balance = 0;
 
         if ($wallet_balance < $ServiceFee) {
             return response()->json([
@@ -1710,13 +1744,13 @@ class VerificationController extends Controller
 
             try {
 
-                $data = ['phone' => $request->input('phoneNumber')];
+                $data = ['bvn' => $request->input('phoneNumber')];
 
-                $url = env('BASE_URL_VERIFY_USER').'api/v1/bvn/verify-phone';
-                $token = env('VERIFY_USER_TOKEN');
+                $url = env('AREWA_URL').'/bvn/verify';
+                $token = env('AREWA_TOKEN');
 
                 $headers = [
-                    'Accept: application/json, text/plain, */*',
+                    'Accept: application/json',
                     'Content-Type: application/json',
                     "Authorization: Bearer $token",
                 ];
@@ -1727,6 +1761,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -1785,3 +1820,4 @@ class VerificationController extends Controller
         }
     }
 }
+

@@ -39,70 +39,23 @@ $("#verifyNIN").on("click", function (event) {
 <div class="border border-light p-3">
    <div class="row">
       <div class="col-md-4 text-center mb-3">
-         <img class="rounded img-fluid" src="data:image/;base64, ${
-             result.data.image
-         }" alt="User Image" style="max-width: 100%; height: auto;">
+         <img class="rounded img-fluid" src="data:image/;base64, ${result.data.image || result.data.photo || ""}" alt="User Image" style="max-width: 100%; height: auto;">
       </div>
       <div class="col-md-8">
          <div class="table-responsive">
             <table class="table table-sm">
                <tbody>
-                  <tr>
-                     <th style="width: 40%;">NIN</th>
-                     <td><span id="nin_no">${result.data.nin}</span></td>
-                  </tr>
-                    <tr>
-                        <th>Tracking ID</th>
-                        <td>${result.data.trackingId}</td>
-                    </tr>
-                  <tr>
-                     <th>First Name</th>
-                     <td>${result.data.firstname}</td>
-                  </tr>
-                  <tr>
-                     <th>Surname</th>
-                     <td>${result.data.surname}</td>
-                  </tr>
-                  <tr>
-                     <th>Middle Name</th>
-                     <td>${result.data.middlename}</td>
-                  </tr>
-                  <tr>
-                     <th>Date of Birth</th>
-                     <td>${result.data.birthdate}</td>
-                  </tr>
-                  <tr>
-                     <th>Phone No</th>
-                     <td>${result.data.telephoneno}</td>
-                  </tr>
-                  <tr>
-                     <th>Gender</th>
-                     <td>${result.data.gender}</td>
-                  </tr>
-                 <tr>
-              <th>Residence State</th>
-              <td>${result.data.residence_state ?? ""}</td>
-            </tr>
-            <tr>
-              <th>Residence LGA / town </th>
-              <td>${result.data.residence_lga ?? ""} / ${
-                    result.data.residence_town ?? ""
-                }</td>
-            </tr>
-            <tr>
-              <th>Birth State</th>
-              <td>${result.data.self_origin_state ?? ""}</td>
-            </tr>
-            <tr>
-              <th>Birth LGA / town </th>
-              <td>${result.data.self_origin_lga ?? ""} / ${
-                    result.data.self_origin_place ?? ""
-                }</td>
-            </tr>
-                  <tr>
-                     <th>Address</th>
-                     <td>${result.data.residence_AdressLine1}</td>
-                  </tr>
+                  <tr><th style="width: 40%;">NIN</th><td><span id="nin_no">${result.data.nin || result.data.idNumber || ""}</span></td></tr>
+                  <tr><th>Tracking ID</th><td>${result.data.trackingId || result.data.trackingid || "N/A"}</td></tr>
+                  <tr><th>First Name</th><td>${result.data.firstname || result.data.firstName || ""}</td></tr>
+                  <tr><th>Middle Name</th><td>${result.data.middlename || result.data.middleName || ""}</td></tr>
+                  <tr><th>Surname</th><td>${result.data.surname || result.data.lastName || ""}</td></tr>
+                  <tr><th>Date of Birth</th><td>${result.data.birthdate || result.data.birthDate || result.data.dateOfBirth || "N/A"}</td></tr>
+                  <tr><th>Phone No</th><td>${result.data.telephoneno || result.data.telephoneNo || result.data.mobile || "N/A"}</td></tr>
+                  <tr><th>Gender</th><td>${result.data.gender || "N/A"}</td></tr>
+                  <tr><th>Residence</th><td>${result.data.residence_state || ""} - ${result.data.residence_lga || ""}</td></tr>
+                  <tr><th>Origin</th><td>${result.data.self_origin_state || ""} - ${result.data.self_origin_lga || ""}</td></tr>
+                  <tr><th>Address</th><td>${result.data.residence_AdressLine1 || result.data.addressLine || result.data.address || "N/A"}</td></tr>
                </tbody>
             </table>
          </div>
