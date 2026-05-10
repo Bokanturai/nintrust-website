@@ -257,7 +257,7 @@
                 switch (selectedItem) {
 
                     case '129':
-                        labelText = "Full Identity Details";
+                        labelText = "Name Modification";
                         inputs += createLabeledInput('nin', 'NIN Number', 11, 'text', '^\\d{11}$',
                             'NIN must be 11 digits');
                         inputs += createLabeledInput('surname', 'Surname');
@@ -348,6 +348,74 @@
                                             class="img-thumbnail mx-auto d-block">
                                     </div>
 
+                                </div>
+                            `;
+                        break;
+
+                    case '133':
+                        labelText = "Name and Date of Birth Modification";
+                        inputs += createLabeledInput('nin', 'NIN Number', 11, 'text', '^\\d{11}$',
+                            'NIN must be 11 digits');
+                        inputs += createLabeledInput('surname', 'New Surname');
+                        inputs += createLabeledInput('firstname', 'New First Name');
+                        inputs += createLabeledInput('middlename', 'New Middle Name', '', '', '', '', '');
+                        inputs += createLabeledInput('dob', 'New Date of Birth', '', 'date');
+                        inputs += createLabeledInput('phone', 'Phone Number', 11, 'text',
+                            '^\\d{11}$', 'Enter a valid 11-digit phone number');
+
+                        inputs += `
+                                <div class="mb-3">
+                                    <label for="photo" class="form-label">Upload Passport Photo <span class="text-danger">*</span></label>
+                                    <input type="file" id="photo" name="photo" accept="image/*" class="form-control" onchange="previewImage(event)" required>
+                                    <div class="mt-2 text-center">
+                                        <img id="imagePreview" src="" alt="Image Preview"
+                                            style="max-height: 150px; display: none;"
+                                            class="img-thumbnail mx-auto d-block">
+                                    </div>
+                                </div>
+                            `;
+                        break;
+
+                    case '134':
+                        labelText = "Phone Number and Date of Birth Modification";
+                        inputs += createLabeledInput('nin', 'NIN Number', 11, 'text', '^\\d{11}$',
+                            'NIN must be 11 digits');
+                        inputs += createLabeledInput('phone', 'New Phone Number', 11, 'text',
+                            '^\\d{11}$', 'Enter a valid 11-digit phone number');
+                        inputs += createLabeledInput('dob', 'New Date of Birth', '', 'date');
+
+                        inputs += `
+                                <div class="mb-3">
+                                    <label for="photo" class="form-label">Upload Passport Photo <span class="text-danger">*</span></label>
+                                    <input type="file" id="photo" name="photo" accept="image/*" class="form-control" onchange="previewImage(event)" required>
+                                    <div class="mt-2 text-center">
+                                        <img id="imagePreview" src="" alt="Image Preview"
+                                            style="max-height: 150px; display: none;"
+                                            class="img-thumbnail mx-auto d-block">
+                                    </div>
+                                </div>
+                            `;
+                        break;
+
+                    case '135':
+                        labelText = "Name and Phone Number Modification";
+                        inputs += createLabeledInput('nin', 'NIN Number', 11, 'text', '^\\d{11}$',
+                            'NIN must be 11 digits');
+                        inputs += createLabeledInput('surname', 'New Surname');
+                        inputs += createLabeledInput('firstname', 'New First Name');
+                        inputs += createLabeledInput('middlename', 'New Middle Name', '', '', '', '', '');
+                        inputs += createLabeledInput('phone', 'New Phone Number', 11, 'text',
+                            '^\\d{11}$', 'Enter a valid 11-digit phone number');
+
+                        inputs += `
+                                <div class="mb-3">
+                                    <label for="photo" class="form-label">Upload Passport Photo <span class="text-danger">*</span></label>
+                                    <input type="file" id="photo" name="photo" accept="image/*" class="form-control" onchange="previewImage(event)" required>
+                                    <div class="mt-2 text-center">
+                                        <img id="imagePreview" src="" alt="Image Preview"
+                                            style="max-height: 150px; display: none;"
+                                            class="img-thumbnail mx-auto d-block">
+                                    </div>
                                 </div>
                             `;
                         break;

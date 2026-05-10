@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
         );
 
         foreach (Service::factory()->withCustomData() as $data) {
-            Service::firstOrCreate(
+            Service::updateOrCreate(
                 ['service_code' => $data['service_code']],
                 $data
             );
