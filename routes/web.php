@@ -117,6 +117,7 @@ Route::middleware(['auth', 'user.active'])->group(function () {
                 Route::get('/standardSlip/{id}', [VerificationController::class, 'standardSlip'])->name('standardSlip');
                 Route::get('/premiumSlip/{id}', [VerificationController::class, 'premiumSlip'])->name('premiumSlip');
                 Route::get('/basicSlip/{id}', [VerificationController::class, 'basicSlip'])->name('basicSlip');
+                Route::get('/vninSlip/{id}', [VerificationController::class, 'vninSlip'])->name('vninSlip');
             });
 
             // NIN Services

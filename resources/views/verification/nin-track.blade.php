@@ -116,10 +116,13 @@
                                         <div class="btn-list text-center" id="download">
                                             <a href="#" id="regularSlip" type="button"
                                                 class="btn btn-primary btn-wave"><i class="bi bi-download"></i>&nbsp;
-                                                Regular NIN Slip
-                                                (&#x20A6;{{ $regular_nin_fee->amount }})</a>
+                                                Regular NIN Slip (&#x20A6;{{ $regular_nin_fee->amount }})
+                                            </a>
+                                            <a href="#" id="vninSlip" type="button"
+                                                class="btn btn-success btn-wave"><i class="bi bi-download"></i>&nbsp;
+                                                VNIN Slip (&#x20A6;{{ $vnin_slip_fee->amount }})
+                                            </a>
                                         </div>
-
                                     </div>
                                     <div class="col-md-12 mt-4">
                                         <center> <span class="text-danger pt-3">To access additional slip formats,

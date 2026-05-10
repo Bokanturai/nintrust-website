@@ -122,6 +122,11 @@
                                                 class="btn btn-secondary btn-wave"><i class="bi bi-download"></i>&nbsp;
                                                 Premium NIN Slip (&#x20A6;{{ $premium_nin_fee->amount }})</a>
                                         </div>
+                                        <div class="mb-2">
+                                            <a href="#" id="vninSlip" type="button"
+                                                class="btn btn-success btn-wave"><i class="bi bi-download"></i>&nbsp;
+                                                VNIN Slip (&#x20A6;{{ $vnin_slip_fee->amount }})</a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

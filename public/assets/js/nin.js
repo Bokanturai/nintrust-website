@@ -100,3 +100,4 @@ function downloadSlip(url, getNIN) {
 $("#regularSlip").on("click", function () { downloadSlip("/user/regularSlip/", $("#nin_no").html()); });
 $("#standardSlip").on("click", function () { downloadSlip("/user/standardSlip/", $("#nin_no").html()); });
 $("#premiumSlip").on("click", function () { downloadSlip("/user/premiumSlip/", $("#nin_no").html()); });
+$("#vninSlip").on("click", function () { downloadSlip("/user/vninSlip/", $("#nin_no").html()); });

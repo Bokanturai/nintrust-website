@@ -224,6 +224,17 @@ class ServiceFactory extends Factory
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
+            [
+                'service_code' => 'V1002',
+                'name' => 'VNIN Verification Slip',
+                'category' => 'Verifications',
+                'type' => 'Uncategorized',
+                'amount' => 150.00,
+                'description' => 'VNIN Verification Slip Fee',
+                'status' => 'enabled',
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ],
         ];
     }
 }

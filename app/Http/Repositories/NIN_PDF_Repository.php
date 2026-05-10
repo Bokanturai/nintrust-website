@@ -46,7 +46,7 @@ class NIN_PDF_Repository
             $pdf->AddPage();
 
             // Load the background image
-            $pdf->Image('assets/card_and_Slip/regular.png', 15, 50, 178, 80, '', '', '', false, 300, '', false, false, 0);
+            $pdf->Image(public_path('assets/card_and_Slip/regular.png'), 15, 50, 178, 80, '', '', '', false, 300, '', false, false, 0);
 
             // Decode and add the photo
             $photo = $ninData['photo'];
@@ -133,8 +133,8 @@ class NIN_PDF_Repository
             $pdf->MultiCell(150, 20, $txt, 0, 'C', false, 1, 35, 20, true, 0, false, true, 0, 'T', false);
 
             // Add images (using JPG instead of PNG)
-            $pdf->Image('assets/card_and_Slip/standard.jpg', 70, 50, 80, 50, '', '', '', false, 300, '', false, false, 0);
-            $pdf->Image('assets/card_and_Slip/back.jpg', 70, 101, 80, 50, '', '', '', false, 300, '', false, false, 0);
+            $pdf->Image(public_path('assets/card_and_Slip/standard.jpg'), 70, 50, 80, 50, '', '', '', false, 300, '', false, false, 0);
+            $pdf->Image(public_path('assets/card_and_Slip/back.jpg'), 70, 101, 80, 50, '', '', '', false, 300, '', false, false, 0);
 
             // Add QR code
             $style = [
@@ -145,7 +145,7 @@ class NIN_PDF_Repository
             ];
             $datas = '{NIN: '.$ninData['nin'].', NAME:'.html_entity_decode($ninData['fName']).' '.html_entity_decode($ninData['mName']).' '.html_entity_decode($ninData['sName']).', DOB: '.$ninData['dob'].', Status:Verified}';
             $pdf->write2DBarcode($datas, 'QRCODE,H', 131.2, 64.7, 14.2, 13.5, $style, 'H');
-            $pdf->Image('assets/card_and_Slip/pin.jpg', 135.8, 69.5, 4.5, 4.5, '', '', '', false, 300, '', false, false, 0);
+            $pdf->Image(public_path('assets/card_and_Slip/pin.jpg'), 135.8, 69.5, 4.5, 4.5, '', '', '', false, 300, '', false, false, 0);
 
             // Decode the base64 image
             $photo = base64_decode($ninData['photo']);
@@ -233,8 +233,8 @@ class NIN_PDF_Repository
             $pdf->MultiCell(150, 20, $txt, 0, 'C', false, 1, 35, 20, true, 0, false, true, 0, 'T', false);
 
             // Use JPG images instead of PNG
-            $pdf->Image('assets/card_and_Slip/premium.jpg', 70, 50, 80, 50, 'JPG', '', '', false, 300, '', false, false, 0);
-            $pdf->Image('assets/card_and_Slip/back.jpg', 70, 101, 80, 50, 'JPG', '', '', false, 300, '', false, false, 0);
+            $pdf->Image(public_path('assets/card_and_Slip/premium.jpg'), 70, 50, 80, 50, 'JPG', '', '', false, 300, '', false, false, 0);
+            $pdf->Image(public_path('assets/card_and_Slip/back.jpg'), 70, 101, 80, 50, 'JPG', '', '', false, 300, '', false, false, 0);
 
             // Add barcode
             $style = [
@@ -389,7 +389,7 @@ class NIN_PDF_Repository
             // $pdf->MultiCell(150, 20, $txt, 0, 'C', false, 1, 35, 20, true, 0, false, true, 0, 'T', false);
 
             // Use JPG images instead of PNG
-            $pdf->Image('assets/card_and_Slip/basic.jpg', 20, 25, 250, 163, 'JPG', '', '', false, 300, '', false, false, 0);
+            $pdf->Image(public_path('assets/card_and_Slip/basic.jpg'), 20, 25, 250, 163, 'JPG', '', '', false, 300, '', false, false, 0);
             // $pdf->Image('assets/card_and_Slip/back.jpg', 70, 101, 80, 50, 'JPG', '', '', false, 300, '', false, false, 0);
 
             // Add barcode
@@ -500,4 +500,205 @@ class NIN_PDF_Repository
             ], 422);
         }
     }
+
+    public function vninPDF($nin_no)
+    {
+        $query = Verification::where('number_nin', $nin_no)
+            ->orWhere('nin', $nin_no)
+            ->orWhere('idno', $nin_no);
+
+        if ($query->exists()) {
+            $verifiedRecord = $query->latest()->first();
+
+            $ninData = [
+                "nin" => $verifiedRecord->number_nin ?? $verifiedRecord->nin ?? $verifiedRecord->idno,
+                "fName" => $verifiedRecord->firstname ?? $verifiedRecord->first_name,
+                "sName" => $verifiedRecord->surname ?? $verifiedRecord->last_name,
+                "mName" => $verifiedRecord->middlename ?? $verifiedRecord->middle_name,
+                "tId" => $verifiedRecord->trackingId,
+                "address" => $verifiedRecord->residence_address ?? $verifiedRecord->address,
+                "lga" => $verifiedRecord->residence_lga ?? $verifiedRecord->lga,
+                "state" => $verifiedRecord->residence_state ?? $verifiedRecord->state,
+                "gender" => $verifiedRecord->gender ?? 'N/A',
+                "birthdate" => $verifiedRecord->birthdate ?? $verifiedRecord->dob,
+                "photo" => str_replace('data:image/jpg;base64,', '', $verifiedRecord->photo_path ?? $verifiedRecord->photo),
+                "created_at" => $verifiedRecord->created_at,
+                "reference" => $verifiedRecord->reference,
+                "agent_id" => $verifiedRecord->performed_by ?? $verifiedRecord->user_id,
+            ];
+
+            // Generate PDF - Portrait
+            $slipW = 190; // Width in mm
+            $slipH = 95;  // Height in mm
+            $marginX = (210 - $slipW) / 2; // Center horizontally on A4
+            $marginY = 30; // Top margin
+
+            $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8');
+            $pdf->setPrintHeader(false);
+            $pdf->setPrintFooter(false);
+            $pdf->SetCreator('NIMC');
+            $pdf->SetAuthor('NIMC');
+            $pdf->SetTitle('VNIN Verification Slip');
+            $pdf->SetSubject('VNIN Verification');
+            $pdf->SetKeywords('NIMC, VNIN, Verification');
+            $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+            $pdf->AddPage();
+
+            // Scale factors
+            $scaleX = $slipW / 297;
+            $scaleY = $slipH / 210;
+
+            // Helper functions for coordinate mapping
+            $mapX = function($x) use ($marginX, $scaleX) {
+                return ($x * $scaleX) + $marginX;
+            };
+            
+            $mapY = function($y) use ($marginY, $scaleY) {
+                return ($y * $scaleY) + $marginY;
+            };
+
+            // 1. Load the background template
+            $pdf->Image(public_path('assets/card_and_Slip/vnin.png'), $marginX, $marginY, $slipW, $slipH, 'PNG', '', '', false, 300, '', false, false, 0);
+
+            // 2. Add photo (if exists)
+            if (!empty($ninData['photo'])) {
+                try {
+                    $imgdata = base64_decode($ninData['photo']);
+                    if ($imgdata !== false) {
+                        $pdf->Image('@' . $imgdata, $mapX(15), $mapY(110), 20 * $scaleX, 35 * $scaleY, 'JPG', '', '', false, 300, '', false, false, 0);
+                    }
+                } catch (\Exception $e) {
+                    // Continue without photo if there's an error
+                }
+            }
+            
+            // Format Given Names
+            $givenNames = trim(($ninData['fName'] ?? '') . ' ' . ($ninData['mName'] ?? ''));
+
+            // 3. Left QR CODE Section Details
+            // Included Middle Name in QR data to consistent with "Given Names"
+            $qrData = 'NIN: ' . $ninData['nin'] . 
+            ', Name: ' . $ninData['sName'] . ' ' . $givenNames . 
+            ', DOB: ' . ($ninData['birthdate'] ?? '');
+            
+            $style = [
+                'border' => false,
+                'padding' => 0,
+                'fgcolor' => [0, 0, 0],
+                'bgcolor' => [255, 255, 255]
+            ];
+            
+            // Fixed size for square QR code
+            $qrSizeLeft = 16;
+            
+            $pdf->write2DBarcode(
+                $qrData,
+                'QRCODE,M',
+                $mapX(75),
+                $mapY(110),
+                $qrSizeLeft,
+                $qrSizeLeft,
+                $style,
+                'N'
+            );
+
+            // 3. Left Card Section Details
+            $pdf->SetFont('helvetica', '', 6); // Regular
+            $pdf->Text($mapX(36), $mapY(112), strtoupper($ninData['sName'] ?? ''));
+
+            $pdf->SetFont('helvetica', '', 6); // Regular
+            $pdf->Text($mapX(36), $mapY(126), strtoupper($givenNames));
+
+            $pdf->SetFont('helvetica', '', 6); // Regular
+            if (!empty($ninData['birthdate'])) {
+                $d = new \DateTime($ninData['birthdate']);
+                $pdf->Text($mapX(36), $mapY(136), $d->format('d M Y'));
+            }
+
+            // 4. Middle Verification Section
+            $pdf->SetFont('helvetica', 'B', 11);
+            $pdf->Text($mapX(103), $mapY(106), strtoupper($ninData['sName'] ?? ''));
+            
+            $pdf->SetFont('helvetica', 'B', 11);
+            $pdf->Text($mapX(103), $mapY(126), strtoupper($givenNames));
+
+            // 6. Footer Information
+            $y_row = $mapY(185);
+            
+            // Timestamp and Transaction ID
+            $pdf->SetFont('courier', 'B', 7);
+            $pdf->SetTextColor(38, 38, 38);
+            
+            // Use 'v' for milliseconds if PHP >= 7.3, otherwise manual substring of 'u'
+            $milliseconds = substr($ninData['created_at']->format('u'), 0, 3);
+            $baseString = $ninData['created_at']->format('Y-m-d\TH:i:s') . '.' . $milliseconds . ($ninData['reference'] ?? '');
+            
+            // Ensure the string is exactly 56 characters
+            if (strlen($baseString) < 56) {
+                // Pad with random hexadecimal characters
+                $needed = 56 - strlen($baseString);
+                $padding = substr(bin2hex(random_bytes((int)ceil($needed / 2))), 0, $needed);
+                $combinedRef = $baseString . $padding;
+            } else {
+                // Truncate to 56 characters if it exceeds (though unlikely given normal ref lengths)
+                $combinedRef = substr($baseString, 0, 56);
+            }
+
+            $pdf->Text($mapX(10), $y_row, $combinedRef);
+            $pdf->SetTextColor(0, 0, 0);
+            
+            // Transaction Type
+            $pdf->Text($mapX(155), $y_row, "TOKEN");
+            
+            // Verification Status
+            $pdf->Text($mapX(195), $y_row, "OK");
+            
+            // Verification Agent ID
+            $agentId = "AGT-" . substr(md5($ninData['agent_id'] ?? 'unknown'), 0, 8);
+            $pdf->Text($mapX(240), $y_row, strtoupper($agentId));
+
+            // 7. TOKEN (if exists)
+            if (!empty($ninData['tId'])) {
+                $pdf->SetFont('helvetica', 'B', 9);
+                $pdf->Text($mapX(225), $mapY(115), "TOKEN");
+                $pdf->SetFont('helvetica', 'B', 10);
+                $pdf->Text($mapX(225), $mapY(120), substr($ninData['tId'], 0, 15));
+            }
+
+            // 8. Watermark
+            $watermarkText = "AGT-" . substr(md5($ninData['agent_id'] ?? 'unknown'), 0, 8);
+            $pdf->SetFont('helvetica', 'B', 15);
+            $pdf->SetTextColor(200, 200, 200);
+            $pdf->SetAlpha(0.2);
+
+            for ($i = $marginX; $i < $marginX + $slipW; $i += 60) {
+                for ($j = $marginY; $j < $marginY + $slipH; $j += 40) {
+                    $pdf->StartTransform();
+                    $pdf->Rotate(45, $i + 15, $j + 15);
+                    $pdf->Text($i, $j, $watermarkText);
+                    $pdf->StopTransform();
+                }
+            }
+            
+            $pdf->SetAlpha(1);
+            $pdf->SetTextColor(0, 0, 0);
+
+            $filename = 'VNIN_Verification_Slip_' . $nin_no . '.pdf';
+            $pdfContent = $pdf->Output($filename, 'S');
+
+            return response($pdfContent, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->header('Content-Length', strlen($pdfContent))
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0');
+
+        } else {
+            return response()->json([
+                "status" => "error",
+                "message" => "Verification record not found!",
+                "data" => null
+            ], 404);
+        }
+    }
 }
+

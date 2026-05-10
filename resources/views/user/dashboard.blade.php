@@ -442,7 +442,7 @@
                                              style="width: 60px; height: 60px;">
                                             <i class="bi bi-fingerprint fs-4"></i>
                                         </div>
-                                        <h6 class="fw-bold text-light mb-2">Verify NIN</h6>
+                                        <h6 class="fw-bold text-light mb-2">Verify vNIN</h6>
                                         <a href="{{ route('user.verify-nin') }}"
                                            class="stretched-link"></a>
                                     </div>
@@ -636,7 +636,7 @@
 
                             @php
                                 $ninServices = [
-                                    ['icon' => 'bi-fingerprint', 'label' => 'Verify NIN', 'route' => 'user.verify-nin'],
+                                    ['icon' => 'bi-fingerprint', 'label' => 'Verify vNIN', 'route' => 'user.verify-nin'],
                                     [
                                         'icon' => 'bi-fingerprint',
                                         'label' => 'Verify NIN V2',
@@ -777,7 +777,7 @@
                                     ],
                                     [
                                         'icon' => 'bi-card-text',
-                                        'label' => 'VNIN Slip',
+                                        'label' => 'VNIN Slip Manual',
                                         'route' => 'user.vnin-slip',
                                     ],
                                 ];

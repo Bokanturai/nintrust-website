@@ -36,7 +36,7 @@ class VerificationController extends Controller
     public function demoVerify()
     {
 
-        $serviceCodes = ['126', '106', '107', '105', '127'];
+        $serviceCodes = ['126', '106', '107', '105', '127', 'V1002'];
         $services = Service::whereIn('service_code', $serviceCodes)
             ->get()
             ->keyBy('service_code');
@@ -47,12 +47,13 @@ class VerificationController extends Controller
         $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
         $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
         $basic_nin_fee = $services->get('127') ?? new \App\Models\Service(['amount' => 0.00]);
+        $vnin_slip_fee = $services->get('V1002') ?? new \App\Models\Service(['amount' => 0.00]);
 
         $user = auth()->user();
 
         $latestVerifications = $user->verifications()->latest()->paginate(5);
 
-        return view('verification.demo-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee', 'regular_nin_fee', 'basic_nin_fee', 'latestVerifications'));
+        return view('verification.demo-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee', 'regular_nin_fee', 'basic_nin_fee', 'vnin_slip_fee', 'latestVerifications'));
     }
 
     public function ninDemoRetrieve(Request $request)
@@ -296,7 +297,7 @@ class VerificationController extends Controller
 
     public function ninPersonalize()
     {
-        $serviceCodes = ['108', '105'];
+        $serviceCodes = ['108', '105', 'V1002'];
         $services = Service::whereIn('service_code', $serviceCodes)
             ->get()
             ->keyBy('service_code');
@@ -304,14 +305,15 @@ class VerificationController extends Controller
         // Extract specific service fees
         $ServiceFee = $services->get('108') ?? new \App\Models\Service(['amount' => 0.00]);
         $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
+        $vnin_slip_fee = $services->get('V1002') ?? new \App\Models\Service(['amount' => 0.00]);
 
-        return view('verification.nin-track', compact('ServiceFee', 'regular_nin_fee'));
+        return view('verification.nin-track', compact('ServiceFee', 'regular_nin_fee', 'vnin_slip_fee'));
     }
 
     public function ninVerify()
     {
 
-        $serviceCodes = ['104', '106', '107'];
+        $serviceCodes = ['104', '106', '107', 'V1002'];
         $services = Service::whereIn('service_code', $serviceCodes)
             ->get()
             ->keyBy('service_code');
@@ -320,14 +322,15 @@ class VerificationController extends Controller
         $ServiceFee = $services->get('104') ?? new \App\Models\Service(['amount' => 0.00]);
         $standard_nin_fee = $services->get('106') ?? new \App\Models\Service(['amount' => 0.00]);
         $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
+        $vnin_slip_fee = $services->get('V1002') ?? new \App\Models\Service(['amount' => 0.00]);
 
-        return view('verification.nin-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee'));
+        return view('verification.nin-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee', 'vnin_slip_fee'));
     }
 
     public function ninVerify2()
     {
 
-        $serviceCodes = ['128', '105', '106', '107', '127'];
+        $serviceCodes = ['128', '105', '106', '107', '127', 'V1002'];
         $services = Service::whereIn('service_code', $serviceCodes)
             ->get()
             ->keyBy('service_code');
@@ -338,8 +341,9 @@ class VerificationController extends Controller
         $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
         $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
         $basic_nin_fee = $services->get('127') ?? new \App\Models\Service(['amount' => 0.00]);
+        $vnin_slip_fee = $services->get('V1002') ?? new \App\Models\Service(['amount' => 0.00]);
 
-        return view('verification.nin-verifyv2', compact('ServiceFee', 'regular_nin_fee', 'standard_nin_fee', 'premium_nin_fee', 'basic_nin_fee'));
+        return view('verification.nin-verifyv2', compact('ServiceFee', 'regular_nin_fee', 'standard_nin_fee', 'premium_nin_fee', 'basic_nin_fee', 'vnin_slip_fee'));
     }
 
     public function bvnVerify()
@@ -359,7 +363,7 @@ class VerificationController extends Controller
     public function phoneVerify()
     {
 
-        $serviceCodes = ['111', '105', '106', '107', '127'];
+        $serviceCodes = ['111', '105', '106', '107', '127', 'V1002'];
         $services = Service::whereIn('service_code', $serviceCodes)
             ->get()
             ->keyBy('service_code');
@@ -370,8 +374,9 @@ class VerificationController extends Controller
         $regular_nin_fee = $services->get('105') ?? new \App\Models\Service(['amount' => 0.00]);
         $premium_nin_fee = $services->get('107') ?? new \App\Models\Service(['amount' => 0.00]);
         $basic_nin_fee = $services->get('127') ?? new \App\Models\Service(['amount' => 0.00]);
+        $vnin_slip_fee = $services->get('V1002') ?? new \App\Models\Service(['amount' => 0.00]);
 
-        return view('verification.nin-phone-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee', 'regular_nin_fee', 'basic_nin_fee'));
+        return view('verification.nin-phone-verify', compact('ServiceFee', 'standard_nin_fee', 'premium_nin_fee', 'regular_nin_fee', 'basic_nin_fee', 'vnin_slip_fee'));
     }
 
     private function createAccounts($userId)
@@ -1629,6 +1634,52 @@ class VerificationController extends Controller
             // Generate PDF
             $repObj = new NIN_PDF_Repository;
             $response = $repObj->basicPDF($nin_no);
+
+            return $response;
+        }
+    }
+
+    public function vninSlip($nin_no)
+    {
+        // the service code is V1002 PRICE 150 so if the services is not created always create it automatically
+        $serviceCode = 'V1002';
+        $service = Service::firstOrCreate(
+            ['service_code' => $serviceCode],
+            [
+                'name' => 'VNIN Verification Slip',
+                'category' => 'Verification',
+                'type' => 'NIN',
+                'amount' => 150.00,
+                'description' => 'VNIN Verification Slip Generation',
+                'status' => 'enabled',
+            ]
+        );
+
+        $ServiceFee = $service->amount;
+
+        // Check if wallet is funded
+        $wallet = Wallet::where('user_id', $this->loginId)->first();
+        $wallet_balance = $wallet->balance;
+        $balance = 0;
+
+        if ($wallet_balance < $ServiceFee) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Insufficient wallet balance',
+                'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
+            ], 422);
+        } else {
+            $balance = $wallet->balance - $ServiceFee;
+
+            Wallet::where('user_id', $this->loginId)->update(['balance' => $balance]);
+
+            $serviceDesc = 'Wallet debitted with a service fee of ₦' . number_format($ServiceFee, 2);
+
+            $this->transactionService->createTransaction($this->loginId, $ServiceFee, 'VNIN Verification Slip', $serviceDesc, 'Wallet', 'Approved');
+
+            // Generate PDF
+            $repObj = new NIN_PDF_Repository;
+            $response = $repObj->vninPDF($nin_no);
 
             return $response;
         }

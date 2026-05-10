@@ -173,6 +173,13 @@
                                                 Basic NIN Slip (&#x20A6;{{ $basic_nin_fee->amount }})
                                             </a>
                                         </div>
+                                        <div>
+                                            <a href="#" id="vninSlip" type="button"
+                                                class="btn btn-success btn-wave w-100">
+                                                <i class="bi bi-download"></i>&nbsp;
+                                                VNIN Slip (&#x20A6;{{ $vnin_slip_fee->amount }})
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
 
