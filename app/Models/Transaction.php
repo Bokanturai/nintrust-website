@@ -13,8 +13,10 @@ class Transaction extends Model
         'user_id',
         'payerid',
         'referenceId',
+        'transaction_ref',
         'service_type',
         'service_description',
+        'description',
         'amount',
         'type',
         'gateway',
@@ -22,6 +24,12 @@ class Transaction extends Model
         'payer_name',
         'payer_phone',
         'payer_email',
+        'performed_by',
+        'metadata',
+    ];
+
+    protected $casts = [
+        'metadata' => 'array',
     ];
 
     public function user()

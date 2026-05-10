@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Agency\BvncrmController;
+use App\Http\Controllers\Agency\BvnSearchController;
+use App\Http\Controllers\Agency\BvnManualSearchController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnrollmentController;
@@ -137,14 +140,8 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             // Route::get('/fetch-data-bundles', [UtilityController::class, 'fetchBundles']);
             // Route::get('/fetch-data-bundles-price', [UtilityController::class, 'fetchBundlePrice']);
 
-            Route::get('/verify-bvn2', [VerificationController::class, 'bvnPhoneVerify'])->name('verify-bvn2');
-            Route::post('/bvn-retrieve2', [VerificationController::class, 'bvnPhoneRetrieve'])->name('bvnRetrieve2');
-
             Route::get('/nin-mod', [ServicesController::class, 'ninModification'])->name('nin.mod');
             Route::post('/nin-services/mod', [ServicesController::class, 'requestModification'])->name('nin.services.mod');
-
-            Route::get('/bvn-phone-search', [VerificationController::class, 'bvnPhoneSearch'])->name('bvn-phone-search');
-            Route::post('bvn-phone-search', [VerificationController::class, 'bvnPhoneRequest'])->name('bvn-phone-request');
 
             Route::get('nin/suspended', [SuspendedNinController::class, 'index'])->name('suspended-nin.form');
             Route::post('nin/suspended/store', [SuspendedNinController::class, 'store'])->name('suspended-nin.store');
@@ -160,6 +157,21 @@ Route::middleware(['auth', 'user.active'])->group(function () {
 
                 return redirect($url);
             })->name('support');
+
+            // BVN Search API
+            Route::get('/verify-bvn2', [BvnSearchController::class, 'index'])->name('verify-bvn2');
+            Route::post('/bvn-search', [BvnSearchController::class, 'store'])->name('bvn-search.store');
+            Route::get('/bvn-search/check/{id}', [BvnSearchController::class, 'checkStatus'])->name('bvn-search.check');
+
+            // BVN CRM
+            Route::get('/bvn-crm', [BvncrmController::class, 'index'])->name('bvn-crm');
+            Route::post('/bvn-crm', [BvncrmController::class, 'store'])->name('crm.store');
+            Route::get('/bvn-crm/check/{id}', [BvncrmController::class, 'checkStatus'])->name('crm.check');
+
+            // Manual BVN Search
+            Route::get('/manual-bvn-search', [BvnManualSearchController::class, 'index'])->name('manual-bvn-search');
+            Route::post('/manual-bvn-search/store', [BvnManualSearchController::class, 'store'])->name('manual-bvn-search.store');
+            Route::get('/manual-bvn-search/check/{id}', [BvnManualSearchController::class, 'checkStatus'])->name('manual-bvn-search.check');
         });
 
         Route::get('/profile', function () {
@@ -246,5 +258,17 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'u
     Route::get('/personalize-nin-list', [\App\Http\Controllers\PersonalizeNinController::class, 'list'])->name('personalize-nin.index');
     Route::get('/view-personalize-nin/{id}/{type}/edit', [\App\Http\Controllers\PersonalizeNinController::class, 'showRequests'])->name('personalize-nin.view');
     Route::post('/requests/{id}/{type}/update-personalize-status', [\App\Http\Controllers\PersonalizeNinController::class, 'updateRequestStatus'])->name('update-personalize-nin-status');
+
+    // BVN CRM Admin
+    Route::get('/bvn-crm-list', [BvncrmController::class, 'adminIndex'])->name('crm.index');
+    Route::post('/bvn-crm/{id}/update', [BvncrmController::class, 'adminUpdate'])->name('crm.update');
+
+    // BVN Search Admin
+    Route::get('/bvn-search-list', [BvnSearchController::class, 'adminIndex'])->name('bvn-search.index');
+    Route::post('/bvn-search/{id}/update', [BvnSearchController::class, 'adminUpdate'])->name('bvn-search.update');
+
+    // Manual BVN Search Admin
+    Route::get('/manual-bvn-search-list', [BvnManualSearchController::class, 'adminIndex'])->name('manual-bvn-search.index');
+    Route::post('/manual-bvn-search/{id}/update', [BvnManualSearchController::class, 'adminUpdate'])->name('manual-bvn-search.update');
 
 });

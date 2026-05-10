@@ -132,11 +132,19 @@
                 <span class="menu-title">INST. BVN Search</span>
             </a>
         </li>
+      
         <li class="nav-item">
-            <a class="nav-link {{ Route::is('user.bvn-phone-search') ? 'active' : '' }}"
-               href="{{ route('user.bvn-phone-search') }}">
+            <a class="nav-link {{ Route::is('user.bvn-crm') ? 'active' : '' }}"
+               href="{{ route('user.bvn-crm') }}">
                 <i class="mdi mdi-magnify menu-icon"></i>
-                <span class="menu-title">BVN Search</span>
+                <span class="menu-title">BVN CRM</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ Route::is('user.manual-bvn-search') ? 'active' : '' }}"
+               href="{{ route('user.manual-bvn-search') }}">
+                <i class="mdi mdi-magnify menu-icon"></i>
+                <span class="menu-title">Manual BVN Search</span>
             </a>
         </li>
 
@@ -282,6 +290,24 @@
                         </a>
                     </li>
 
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::is('admin.crm.index') ? 'active' : '' }}"
+                           href="{{ route('admin.crm.index') }}">
+                            <i class="mdi mdi-clipboard-text-clock-outline menu-icon"></i>BVN CRM Requests
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::is('admin.bvn-search.index') ? 'active' : '' }}"
+                           href="{{ route('admin.bvn-search.index') }}">
+                            <i class="mdi mdi-search-web menu-icon"></i>BVN Search Requests
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::is('admin.manual-bvn-search.index') ? 'active' : '' }}"
+                           href="{{ route('admin.manual-bvn-search.index') }}">
+                            <i class="mdi mdi-search-web menu-icon"></i>Manual BVN Search
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {{ Route::is('admin.personalize-nin.index') ? 'active' : '' }}"
                            href="{{ route('admin.personalize-nin.index') }}">

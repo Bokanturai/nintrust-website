@@ -728,14 +728,22 @@
                                     ['icon' => 'bi-fingerprint', 'label' => 'Verify BVN', 'route' => 'user.verify-bvn'],
                                     [
                                         'icon' => 'bi-search',
-                                        'label' => 'Instant BVN Search',
+                                        'label' => 'BVN Search API',
                                         'route' => 'user.verify-bvn2',
                                     ],
-                                    [
+
+                                     [
                                         'icon' => 'bi-search',
-                                        'label' => 'BVN Phone Search',
-                                        'route' => 'user.bvn-phone-search',
+                                        'label' => 'BVN CRM',
+                                        'route' => 'user.bvn-crm',
                                     ],
+
+                                     [
+                                        'icon' => 'bi-search',
+                                        'label' => 'Manual BVN Search',
+                                        'route' => 'user.manual-bvn-search',
+                                    ],
+
                                     [
                                         'icon' => 'bi-person-plus',
                                         'label' => 'BVN Enrollment',

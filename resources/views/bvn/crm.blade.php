@@ -1,0 +1,400 @@
+@extends('layouts.dashboard')
+
+@section('title', 'BVN CRM Request')
+
+@section('content')
+    <div class="page-title mb-3">
+        <div class="row">
+            <div class="col-sm-6 col-12">
+                <h3 class="fw-bold text-primary">CRM on Failed Enrolment</h3>
+                <p class="text-muted small mb-0">Submit your request accurately to ensure smooth processing.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <!-- BVN CRM Form -->
+            <div class="col-xl-6 mb-4">
+                <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="mb-0 fw-bold text-white"><i class="bi bi-gear-wide-connected me-2"></i>BVN CRM Request</h5>
+                    </div>
+
+                    <div class="card-body p-4">
+                        @if (session('status'))
+                            <div class="alert alert-{{ session('status') === 'success' ? 'success' : 'danger' }} alert-dismissible fade show border-0 shadow-sm mb-4">
+                                <i class="bi bi-{{ session('status') === 'success' ? 'check-circle' : 'exclamation-triangle' }} me-2"></i>
+                                {{ session('message') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        @if ($errors->any())
+                            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4">
+                                <ul class="mb-0 small">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        @endif
+
+                        <div class="text-center mb-4">
+                            <h5 class="fw-bold">{{ $crmService->name ?? 'Central Risk Management CRM' }}</h5>
+                            <p class="text-muted">
+                                Provide the Batch and Ticket IDs from your failed NIBSS enrollment.
+                            </p>
+                        </div>
+
+                        {{-- BVN CRM Request Form --}}
+                        <form method="POST" action="{{ route('user.crm.store') }}" class="row g-4">
+                            @csrf
+
+                            <!-- IDs Row -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Batch ID <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-hash"></i></span>
+                                    <input class="form-control" name="batch_id" type="text" required
+                                           placeholder="7 digits"
+                                           value="{{ old('batch_id') }}" maxlength="7" minlength="7"
+                                           pattern="[0-9]{7}">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#sampleInfoModal">
+                                        <i class="bi bi-question-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Ticket ID <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light"><i class="bi bi-ticket-perforated"></i></span>
+                                    <input class="form-control" name="ticket_id" type="text" required
+                                           placeholder="8 digits"
+                                           value="{{ old('ticket_id') }}" maxlength="8" minlength="8"
+                                           pattern="[0-9]{8}">
+                                </div>
+                            </div>
+
+                            <!-- Pricing Info -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Service Fee</label>
+                                <div class="alert alert-secondary py-2 mb-0 text-center border-0 shadow-sm">
+                                    <span class="h5 fw-bold mb-0 text-primary">₦{{ number_format($crmService->amount ?? 0, 2) }}</span>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Wallet Balance</label>
+                                <div class="alert alert-soft-success py-2 mb-0 text-center border-0 shadow-sm">
+                                    <span class="h5 fw-bold mb-0 text-success">₦{{ number_format($wallet->balance ?? 0, 2) }}</span>
+                                </div>
+                            </div>
+
+
+                            <!-- Submit -->
+                            <div class="col-12 d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg shadow-sm hover-up">
+                                    <i class="bi bi-cloud-upload me-2"></i> Submit CRM Request
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submission History -->
+            <div class="col-xl-6">
+                <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                    <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
+                        <h5 class="fw-bold mb-0 text-white">
+                            <i class="bi bi-clock-history me-2"></i> CRM Submission History
+                        </h5>
+                    </div>
+
+                    <div class="card-body p-4">
+                        <!-- Filter Form -->
+                        <form method="GET" class="row g-3 mb-4 bg-light p-3 rounded-3 border">
+                            <div class="col-md-5">
+                                <input class="form-control border-0 shadow-sm"
+                                       name="search"
+                                       type="text"
+                                       placeholder="Ticket/Batch ID..."
+                                       value="{{ request('search') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select border-0 shadow-sm" name="status">
+                                    <option value="">All Statuses</option>
+                                    @foreach(['pending','processing','successful','query','resolved','rejected','remark','failed'] as $status)
+                                        <option value="{{ $status }}" {{ request('status') == $status ? 'selected' : '' }}>
+                                            {{ ucfirst($status) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-primary w-100 shadow-sm" type="submit">
+                                    <i class="bi bi-filter"></i> Filter
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Table -->
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="bg-primary text-white">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Reference</th>
+                                        <th>Ticket ID</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($submissions as $submission)
+                                        <tr>
+                                            <td class="fw-bold text-muted">{{ $loop->iteration + $submissions->firstItem() - 1 }}</td>
+                                            <td><span class="text-primary fw-medium">{{ $submission->reference }}</span></td>
+                                            <td><span class="badge bg-secondary-subtle text-secondary border">{{ $submission->ticket_id ?? $submission->batch_id ?? 'N/A' }}</span></td>
+                                            <td>
+                                                <span class="badge rounded-pill bg-{{ match($submission->status) {
+                                                    'resolved', 'successful' => 'success',
+                                                    'processing'             => 'primary',
+                                                    'rejected'               => 'danger',
+                                                    'failed'                 => 'danger',
+                                                    'query'                  => 'info',
+                                                    'remark'                 => 'secondary',
+                                                    default                  => 'warning'
+                                                } }}">
+                                                    {{ ucfirst($submission->status) }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @php
+                                                    $fileUrl = '';
+                                                    if (!empty($submission->file_url)) {
+                                                        $f = $submission->file_url;
+                                                        if (preg_match('/^https?:\/\//', $f)) {
+                                                            $fileUrl = $f;
+                                                        } elseif (str_starts_with($f, '/storage') || str_starts_with($f, 'storage')) {
+                                                            $fileUrl = asset(ltrim($f, '/'));
+                                                        } else {
+                                                            $fileUrl = \Illuminate\Support\Facades\Storage::url($f);
+                                                        }
+                                                    }
+                                                @endphp
+                                                <div class="d-flex gap-2">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-icon btn-outline-primary"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#commentModal"
+                                                            data-comment="{{ $submission->comment ?? 'No comment yet.' }}"
+                                                            data-file-url="{{ $fileUrl }}">
+                                                        <i class="bi bi-eye-fill"></i>
+                                                    </button>
+
+                                                    @if($submission->status === 'pending' || $submission->status === 'processing' || $submission->status === 'query')
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-icon btn-outline-info btn-check-status" 
+                                                                data-id="{{ $submission->id }}"
+                                                                data-url="{{ route('user.crm.check', $submission->id) }}"
+                                                                title="Check Status">
+                                                            <i class="bi bi-arrow-clockwise"></i>
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-5">
+                                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                                No CRM submissions found matching your criteria.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div class="mt-4 d-flex justify-content-center">
+                            {{ $submissions->withQueryString()->links('vendor.pagination.bootstrap-5') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guidelines Modal -->
+    <div class="modal fade" id="sampleInfoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header bg-primary text-white py-3">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-info-circle me-2"></i>Submission Guidelines</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-dark">How to find your IDs:</h6>
+                        <ul class="list-group list-group-flush border-0">
+                            <li class="list-group-item border-0 px-0 d-flex align-items-start">
+                                <i class="bi bi-1-circle-fill text-primary me-3 mt-1"></i>
+                                <span>Go to your <strong>Failed Enrollments</strong> history in your agent portal.</span>
+                            </li>
+                            <li class="list-group-item border-0 px-0 d-flex align-items-start">
+                                <i class="bi bi-2-circle-fill text-primary me-3 mt-1"></i>
+                                <span>Identify the specific record and look for the response code from NIBSS.</span>
+                            </li>
+                            <li class="list-group-item border-0 px-0 d-flex align-items-start">
+                                <i class="bi bi-3-circle-fill text-primary me-3 mt-1"></i>
+                                <span>Copy the <strong>Batch ID (7 digits)</strong> and <strong>Ticket ID (8 digits)</strong> precisely.</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="alert alert-warning border-0 shadow-sm d-flex">
+                        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                        <div>
+                            <strong>Attention:</strong> Incorrect IDs will result in automatic rejection and may still incur a processing fee as per policy.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal">Got it!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Comment Modal --}}
+    <div class="modal fade" id="commentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-primary text-white py-3">
+                    <h5 class="modal-title fw-bold">Submission Details</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="fw-bold mb-2">Message/Comment:</p>
+                    <div class="bg-light p-3 rounded-3 mb-3 border" id="modal-comment-text" 
+                         style="width: 100%; 
+                                word-wrap: break-word; 
+                                overflow-wrap: break-word; 
+                                word-break: break-word; 
+                                white-space: normal;"></div>
+                    
+                    <div id="modal-file-section" style="display: none;">
+                        <p class="fw-bold mb-2">Attached File:</p>
+                        <a href="#" id="modal-file-link" target="_blank" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-download me-2"></i> View/Download File
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+
+@push('styles')
+    <style>
+        .hover-up:hover { transform: translateY(-3px); transition: all 0.3s ease; }
+        .alert-soft-success { background-color: #d1e7dd; color: #0f5132; }
+        .btn-icon { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+        .table thead th { font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+    </style>
+@endpush
+
+@push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Comment Modal Handling
+            const commentModal = document.getElementById('commentModal');
+            if (commentModal) {
+                commentModal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    const comment = button.getAttribute('data-comment');
+                    const fileUrl = button.getAttribute('data-file-url');
+                    
+                    document.getElementById('modal-comment-text').textContent = comment;
+                    
+                    const fileSection = document.getElementById('modal-file-section');
+                    const fileLink = document.getElementById('modal-file-link');
+                    
+                    if (fileUrl && fileUrl !== '') {
+                        fileSection.style.display = 'block';
+                        fileLink.href = fileUrl;
+                    } else {
+                        fileSection.style.display = 'none';
+                    }
+                });
+            }
+
+            @if (session('status') && session('message'))
+                Swal.fire({
+                    icon: "{{ session('status') === 'success' ? 'success' : 'error' }}",
+                    title: "{{ session('status') === 'success' ? 'Success!' : 'Oops!' }}",
+                    text: "{{ session('message') }}",
+                    confirmButtonColor: '#3085d6',
+                });
+            @endif
+
+            // AJAX Status Check
+            document.querySelectorAll('.btn-check-status').forEach(button => {
+                button.addEventListener('click', function() {
+                    const url = this.getAttribute('data-url');
+                    const icon = this.querySelector('i');
+                    
+                    // Show loading
+                    icon.classList.add('bi-spin'); 
+                    this.disabled = true;
+
+                    fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        icon.classList.remove('bi-spin');
+                        this.disabled = false;
+                        
+                        Swal.fire({
+                            icon: data.status === 'success' ? 'success' : 'error',
+                            title: data.status === 'success' ? 'Status Updated' : 'Error',
+                            text: data.message,
+                            confirmButtonColor: '#3085d6',
+                        }).then(() => {
+                            if (data.status === 'success') {
+                                location.reload(); // Reload to show updated status in table
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        icon.classList.remove('bi-spin');
+                        this.disabled = false;
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'An unexpected error occurred.',
+                        });
+                    });
+                });
+            });
+        });
+    </script>
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .bi-spin { animation: spin 2s linear infinite; display: inline-block; }
+    </style>
+@endpush

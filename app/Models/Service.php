@@ -19,18 +19,11 @@ class Service extends Model
         'status',
     ];
 
-    public static function getAmountByCode($code)
+    /**
+     * Get the verifications for the service.
+     */
+    public function verifications()
     {
-        return \Illuminate\Support\Facades\Cache::remember("service_amount_{$code}", 3600, function () use ($code) {
-            $service = self::where('service_code', $code)->where('status', 'enabled')->first();
-            return $service ? $service->amount : 0;
-        });
-    }
-
-    protected static function booted()
-    {
-        static::saved(function ($service) {
-            \Illuminate\Support\Facades\Cache::forget("service_amount_{$service->service_code}");
-        });
+        return $this->hasMany(Verification::class);
     }
 }

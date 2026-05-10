@@ -2,12 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\ClaimCount;
 use App\Models\Service;
 use App\Models\User;
-use Illuminate\Database\Seeder;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -16,34 +14,49 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-
-
-        // Service::truncate();
-        // ClaimCount::truncate();
-
-        User::updateOrCreate(
-            ['email' => 'admin@nintrust.com.ng'],
-            [
-                'name' => 'NIN TRUST Admin',
-                'email_verified_at' => now(),
-                'password' => Hash::make('@passwd12345'),
-                'role' => 'admin',
-            ]
-        );
-
-        foreach (Service::factory()->withCustomData() as $data) {
-            Service::updateOrCreate(
-                ['service_code' => $data['service_code']],
-                $data
-            );
-        }
-
-        if (ClaimCount::count() === 0) {
-            ClaimCount::factory(1)->create();
-        }
+        // User::factory(10)->create();
 
         $this->call([
             ReferralBonusTableSeeder::class,
         ]);
+
+        // Seed CRM Service
+        Service::updateOrCreate(
+            ['service_code' => '021'],
+            [
+                'name' => 'Central risk management CRM',
+                'category' => 'Agency',
+                'type' => 'CRM',
+                'amount' => 500.00,
+                'description' => 'BVN CRM Services (Central risk management)',
+                'status' => 'enabled',
+            ]
+        );
+
+        // Seed Manual BVN Search Service
+        Service::updateOrCreate(
+            ['service_code' => '046'],
+            [
+                'name' => 'Manual BVN Search',
+                'category' => 'Agency',
+                'type' => 'MANUAL_BVN_SEARCH',
+                'amount' => 500.00,
+                'description' => 'Manual BVN Search (No API - Admin Handled)',
+                'status' => 'enabled',
+            ]
+        );
+
+        // Seed BVN Search Service
+        Service::updateOrCreate(
+            ['service_code' => '045'],
+            [
+                'name'        => 'BVN Search Request',
+                'category'    => 'Agency',
+                'type'        => 'BVN_SEARCH',
+                'amount'      => 500.00,
+                'description' => 'BVN Phone Search Service (Arewa API)',
+                'status'      => 'enabled',
+            ]
+        );
     }
 }
