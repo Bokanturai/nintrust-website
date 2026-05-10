@@ -18,8 +18,8 @@ class DatabaseSeeder extends Seeder
     {
 
 
-        Service::truncate();
-        ClaimCount::truncate();
+        // Service::truncate();
+        // ClaimCount::truncate();
 
         User::updateOrCreate(
             ['email' => 'admin@nintrust.com.ng'],
@@ -31,13 +31,16 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-
-
         foreach (Service::factory()->withCustomData() as $data) {
-            Service::create($data);
+            Service::firstOrCreate(
+                ['service_code' => $data['service_code']],
+                $data
+            );
         }
 
-        ClaimCount::factory(1)->create();
+        if (ClaimCount::count() === 0) {
+            ClaimCount::factory(1)->create();
+        }
 
         $this->call([
             ReferralBonusTableSeeder::class,
