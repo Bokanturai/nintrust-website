@@ -7,6 +7,7 @@ use App\Http\Controllers\EnrollmentSyncController;
 use App\Http\Controllers\IpeController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\ScratchCardController;
+use App\Http\Controllers\PersonalizeNinController;
 use App\Http\Controllers\ServicesController;
 use App\Http\Controllers\SiteSettingController;
 use App\Http\Controllers\SuspendedNinController;
@@ -74,7 +75,8 @@ Route::middleware(['auth', 'user.active'])->group(function () {
             Route::get('/verify-nin2', [VerificationController::class, 'ninVerify2'])->name('verify-nin2');
             Route::get('/verify-nin-phone', [VerificationController::class, 'phoneVerify'])->name('verify-nin-phone');
             Route::get('/verify-bvn', [VerificationController::class, 'bvnVerify'])->name('verify-bvn');
-            Route::get('/nin-personalize', [VerificationController::class, 'ninPersonalize'])->name('personalize-nin');
+            Route::get('/nin-personalize', [PersonalizeNinController::class, 'index'])->name('personalize-nin');
+            Route::post('/nin-personalize/store', [PersonalizeNinController::class, 'store'])->name('personalize-nin.store');
             Route::get('/ipe', [VerificationController::class, 'showIpe'])->name('ipe');
             Route::get('/bvn-enrollment', [EnrollmentController::class, 'bvnEnrollment'])->name('bvn-enrollment');
             Route::get('/verify-demo', [VerificationController::class, 'demoVerify'])->name('verify-demo');
@@ -240,5 +242,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'u
     Route::get('/vnin-slip-list', [\App\Http\Controllers\VninSlipController::class, 'list'])->name('vnin-slip.index');
     Route::get('/view-vnin-slip/{id}/{type}/edit', [\App\Http\Controllers\VninSlipController::class, 'showRequests'])->name('vnin-slip.view');
     Route::post('/requests/{id}/{type}/update-vnin-status', [\App\Http\Controllers\VninSlipController::class, 'updateRequestStatus'])->name('update-vnin-slip-status');
+
+    Route::get('/personalize-nin-list', [\App\Http\Controllers\PersonalizeNinController::class, 'list'])->name('personalize-nin.index');
+    Route::get('/view-personalize-nin/{id}/{type}/edit', [\App\Http\Controllers\PersonalizeNinController::class, 'showRequests'])->name('personalize-nin.view');
+    Route::post('/requests/{id}/{type}/update-personalize-status', [\App\Http\Controllers\PersonalizeNinController::class, 'updateRequestStatus'])->name('update-personalize-nin-status');
 
 });

@@ -636,11 +636,20 @@
 
                             @php
                                 $ninServices = [
-                                    ['icon' => 'bi-fingerprint', 'label' => 'Verify vNIN', 'route' => 'user.verify-nin'],
+                                    [
+                                        'icon' => 'bi-fingerprint',
+                                        'label' => 'Verify vNIN',
+                                        'route' => 'user.verify-nin',
+                                    ],
                                     [
                                         'icon' => 'bi-fingerprint',
                                         'label' => 'Verify NIN V2',
                                         'route' => 'user.verify-nin2',
+                                    ],
+                                    [
+                                        'icon' => 'bi-card-text',
+                                        'label' => 'Manual VNIN Slip',
+                                        'route' => 'user.vnin-slip',
                                     ],
                                     [
                                         'icon' => 'bi-fingerprint',
@@ -774,11 +783,6 @@
                                         'icon' => 'bi-x-circle-fill',
                                         'label' => 'Suspended NIN',
                                         'route' => 'user.suspended-nin.form',
-                                    ],
-                                    [
-                                        'icon' => 'bi-card-text',
-                                        'label' => 'VNIN Slip Manual',
-                                        'route' => 'user.vnin-slip',
                                     ],
                                 ];
                             @endphp

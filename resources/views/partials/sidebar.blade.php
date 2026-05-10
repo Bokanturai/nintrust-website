@@ -282,6 +282,13 @@
                         </a>
                     </li>
 
+                    <li class="nav-item">
+                        <a class="nav-link {{ Route::is('admin.personalize-nin.index') ? 'active' : '' }}"
+                           href="{{ route('admin.personalize-nin.index') }}">
+                            <i class="mdi mdi-magnify menu-icon"></i>Personalize NIN
+                        </a>
+                    </li>
+
                 </ul>
             </li>
         @endif

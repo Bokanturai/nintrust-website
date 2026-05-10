@@ -11,6 +11,8 @@ use App\Models\ScratchCard;
 use App\Models\SuspendedNinRequest;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\VninSlipRequest;
+use App\Models\PersonalizeNinRequest;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -53,6 +55,8 @@ class DashboardController extends Controller
             $totalBonusBalance = DB::table('bonus_histories')->selectRaw('SUM(amount) as total')->value('total');
             $ipePending = IpeRequest::whereIn('resp_code', ['100', '101'])->count();
              $suspendedNinPending = SuspendedNinRequest::whereIn('status', ['submitted', 'processing'])->count();
+             $vninSlipPending = VninSlipRequest::whereIn('status', ['submitted', 'processing'])->count();
+             $personalizeNinPending = PersonalizeNinRequest::whereIn('status', ['submitted', 'processing'])->count();
             $metrics = [
                 [
                     'title' => 'Total Revenue',
@@ -137,6 +141,20 @@ class DashboardController extends Controller
                     'icon' => 'bi-check-circle',
                     'bg' => 'success',
                     'href' => 'admin.scratch_cards.index',
+                ],
+                [
+                    'title' => 'VNIN Manual',
+                    'value' => number_format($vninSlipPending),
+                    'icon' => 'bi-card-text',
+                    'bg' => 'info',
+                    'href' => 'admin.vnin-slip.index',
+                ],
+                [
+                    'title' => 'Personalize NIN',
+                    'value' => number_format($personalizeNinPending),
+                    'icon' => 'bi-search',
+                    'bg' => 'primary',
+                    'href' => 'admin.personalize-nin.index',
                 ],
             ];
 
