@@ -33,7 +33,8 @@ $("#verifyBVN").on("click", function (event) {
         success: function (result) {
             $("#loader").hide();
 
-            validationInfo.innerHTML = `
+            if (result && result.data) {
+                validationInfo.innerHTML = `
             <div class="border border-light">
    <div class="table-responsive">
       <table class="table">
@@ -49,32 +50,32 @@ $("#verifyBVN").on("click", function (event) {
 
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">BVN</th>
-               <td style="text-align:left" ><span id="bvnno" >${result.data.bvn}</span>
+               <td style="text-align:left" ><span id="bvnno" >${result.data.bvn || ""}</span>
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">FirstName</th>
-               <td  style="text-align:left">${result.data.firstName}
+               <td  style="text-align:left">${result.data.firstName || result.data.firstname || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Surname</th>
-               <td  style="text-align:left">${result.data.lastName}
+               <td  style="text-align:left">${result.data.lastName || result.data.surname || result.data.lastname || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Middle Name</th>
-               <td  style="text-align:left">${result.data.middleName}
+               <td  style="text-align:left">${result.data.middleName || result.data.middlename || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Phone No</th>
-               <td  style="text-align:left">${result.data.phoneNumber}
+               <td  style="text-align:left">${result.data.phoneNumber || result.data.phone || result.data.telephoneno || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Gender</th>
-               <td  style="text-align:left">${result.data.gender}
+               <td  style="text-align:left">${result.data.gender || "N/A"}
                </td>
             </tr>
 
@@ -83,7 +84,14 @@ $("#verifyBVN").on("click", function (event) {
    </div>
 </div>
             `;
-            $("#download").show();
+                hideLoader();
+                $("#validation-info").removeClass("hidden").removeClass("d-none");
+                $("#download").show();
+            } else {
+                hideLoader();
+                $("#errorMsg").show();
+                $("#message").html("Invalid Response");
+            }
         },
         error: function (data) {
             $("#loader").hide();
@@ -164,10 +172,10 @@ $("#plasticSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
-        .then((response) => {
+    .then((response) => {
             if (response.ok) {
                 // Extract filename from Content-Disposition header
                 const contentDisposition = response.headers.get(

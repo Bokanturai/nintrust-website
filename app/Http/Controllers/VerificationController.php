@@ -99,8 +99,8 @@ class VerificationController extends Controller
                     'ref' => 'nintrust_' . time(),
                 ];
 
-                $url = env('AREWA_URL').'/nin/demo';
-                $token = env('AREWA_TOKEN');
+                $url = config('services.arewa.url').'/nin/demo';
+                $token = config('services.arewa.token');
 
                 $headers = [
                     'Accept: application/json, text/plain, */*',
@@ -114,7 +114,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -152,10 +152,7 @@ class VerificationController extends Controller
 
                     $this->processResponseDataForNINDEMO($data, $loginUserId, $ServiceFee, $trx);
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                     return response()->json(['status' => 'success', 'data' => $data]);
                 } else {
@@ -167,7 +164,7 @@ class VerificationController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'Request failed',
-                    'errors' => ['An error occurred while making the API request'],
+                    'errors' => ['An error occurred while making the API request' => $e->getMessage()],
                 ], 422);
             }
         }
@@ -227,7 +224,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -257,10 +254,7 @@ class VerificationController extends Controller
 
                     $this->processResponseDataForNIN($data, $loginUserId, $ServiceFee, $trx);
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                     return json_encode(['status' => 'success', 'data' => $data]);
                 } else {
@@ -272,7 +266,7 @@ class VerificationController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'Request failed',
-                    'errors' => ['An error occurred while making the API request'],
+                    'errors' => ['An error occurred while making the API request' => $e->getMessage()],
                 ], 422);
             }
         }
@@ -420,7 +414,7 @@ class VerificationController extends Controller
             // Set cURL options
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -529,7 +523,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -557,10 +551,7 @@ class VerificationController extends Controller
 
                     $this->processResponseDataForNIN($data, $loginUserId, $ServiceFee, $trx);
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                     return json_encode(['status' => 'success', 'data' => $data]);
                 } else {
@@ -572,7 +563,7 @@ class VerificationController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'Request failed',
-                    'errors' => ['An error occurred while making the API request'],
+                    'errors' => ['An error occurred while making the API request' => $e->getMessage()],
                 ], 422);
             }
         }
@@ -635,7 +626,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -667,10 +658,7 @@ class VerificationController extends Controller
 
                     $this->processResponseDataForNINPhone($data, $loginUserId, $ServiceFee, $trx);
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                     return json_encode(['status' => 'success', 'data' => $data]);
                 } else {
@@ -682,7 +670,7 @@ class VerificationController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'Request failed',
-                    'errors' => ['An error occurred while making the API request'],
+                    'errors' => ['An error occurred while making the API request' => $e->getMessage()],
                 ], 422);
             }
         }
@@ -743,7 +731,7 @@ class VerificationController extends Controller
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -775,8 +763,7 @@ class VerificationController extends Controller
             }
 
             DB::transaction(function () use ($loginUserId, $wallet, $ServiceFee, $trackingId, $status, $respCode, $comment) {
-                $newBalance = $wallet->balance - $ServiceFee;
-                Wallet::where('user_id', $loginUserId)->update(['balance' => $newBalance]);
+                Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                 $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
                 $tnx = $this->transactionService->createTransaction($loginUserId, $ServiceFee, 'IPE Request', $serviceDesc, 'Wallet', 'Approved');
@@ -822,7 +809,7 @@ class VerificationController extends Controller
             // Set cURL options
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
             curl_setopt($ch, CURLOPT_HTTPGET, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
@@ -874,8 +861,7 @@ class VerificationController extends Controller
                         ->first();
 
                     if ($requestRecord) {
-                        $balance = $wallet->balance + $ServiceFee;
-                        Wallet::where('user_id', $this->loginId)->update(['balance' => $balance]);
+                        Wallet::where('user_id', $this->loginId)->increment('balance', $ServiceFee);
                         IpeRequest::where('trackingId', $trackingId)
                             ->where('user_id', $this->loginId)
                             ->update(['refunded_at' => Carbon::now(), 'reply' => $comment, 'status' => 'failed', 'resp_code' => $respCode]);
@@ -950,7 +936,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -978,18 +964,12 @@ class VerificationController extends Controller
 
                     $this->processResponseDataForBVN($data, $loginUserId, $ServiceFee, $trx);
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                     return json_encode(['status' => 'success', 'data' => $data]);
                 } elseif ($response['respCode'] == '99120010') {
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $this->loginId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
                     $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1008,7 +988,7 @@ class VerificationController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'Request failed',
-                    'errors' => ['An error occurred while making the API request'],
+                    'errors' => ['An error occurred while making the API request' => $e->getMessage()],
                 ], 422);
             }
         }
@@ -1060,7 +1040,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
                 // Execute request
@@ -1086,10 +1066,7 @@ class VerificationController extends Controller
 
                     $this->processResponseDataForNINTracking($data, $loginUserId, $ServiceFee, $trx);
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                     return json_encode(['status' => 'success', 'data' => $data]);
                 } else {
@@ -1101,7 +1078,7 @@ class VerificationController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'Request failed',
-                    'errors' => ['An error occurred while making the API request'],
+                    'errors' => ['An error occurred while making the API request' => $e->getMessage()],
                 ], 422);
             }
         }
@@ -1399,10 +1376,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            $affected = Wallet::where('user_id', $this->loginId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1433,10 +1407,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            $affected = Wallet::where('user_id', $this->loginId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1466,10 +1437,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            $affected = Wallet::where('user_id', $this->loginId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1500,10 +1468,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            $affected = Wallet::where('user_id', $this->loginId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1544,10 +1509,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            $affected = Wallet::where('user_id', $this->loginId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1589,10 +1551,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            $affected = Wallet::where('user_id', $this->loginId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1622,10 +1581,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            $affected = Wallet::where('user_id', $this->loginId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1669,9 +1625,7 @@ class VerificationController extends Controller
                 'errors' => ['Wallet Error' => 'Sorry Wallet Not Sufficient for Transaction !'],
             ], 422);
         } else {
-            $balance = $wallet->balance - $ServiceFee;
-
-            Wallet::where('user_id', $this->loginId)->update(['balance' => $balance]);
+            Wallet::where('user_id', $this->loginId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦' . number_format($ServiceFee, 2);
 
@@ -1728,10 +1682,7 @@ class VerificationController extends Controller
                 ->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
         } else {
 
-            $balance = $wallet_balance - $ServiceFee;
-
-            Wallet::where('user_id', $loginUserId)
-                ->update(['balance' => $balance]);
+            Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
             $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1812,7 +1763,7 @@ class VerificationController extends Controller
                 // Set cURL options
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
                 curl_setopt($ch, CURLOPT_POST, true);
                 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
                 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
@@ -1840,10 +1791,7 @@ class VerificationController extends Controller
 
                     // $this->processResponseDataForBVNPhone($data);
 
-                    $balance = $wallet->balance - $ServiceFee;
-
-                    Wallet::where('user_id', $loginUserId)
-                        ->update(['balance' => $balance]);
+                    Wallet::where('user_id', $loginUserId)->decrement('balance', $ServiceFee);
 
                     $serviceDesc = 'Wallet debitted with a service fee of ₦'.number_format($ServiceFee, 2);
 
@@ -1865,7 +1813,7 @@ class VerificationController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'Request failed',
-                    'errors' => ['An error occurred while making the API request'],
+                    'errors' => ['An error occurred while making the API request' => $e->getMessage()],
                 ], 422);
             }
         }

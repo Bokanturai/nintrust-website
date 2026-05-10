@@ -35,22 +35,28 @@ $("#verifyBVN").on("click", function (event) {
             $("#loader").hide();
 
             if (result && result.data) {
+                const photoData = result.data.photo || result.data.image || result.data.face || result.data.passport || '';
+                const defaultPhoto = '/assets/images/img/default-avatar.jpg';
+                const photoSrc = photoData
+                    ? (photoData.startsWith('data:image') ? photoData : `data:image/;base64,${photoData}`)
+                    : defaultPhoto;
+
                 validationInfo.innerHTML = `
 <div class="border border-light p-3">
    <div class="row">
       <div class="col-md-4 text-center mb-3">
-         <img class="rounded img-fluid" src="data:image/;base64, ${result.data.image || result.data.photo || ""}" alt="User Image" style="max-width: 100%; height: auto;">
+         <img class="rounded img-fluid" src="${photoSrc}" alt="User Image" style="max-width: 100%; height: auto;">
       </div>
       <div class="col-md-8">
          <div class="table-responsive">
             <table class="table table-sm">
                <tbody>
                   <tr><th style="width: 40%;">BVN</th><td><span id="bvnno">${result.data.bvn || ""}</span></td></tr>
-                  <tr><th>First Name</th><td>${result.data.firstName || ""}</td></tr>
-                  <tr><th>Middle Name</th><td>${result.data.middleName || ""}</td></tr>
-                  <tr><th>Last Name</th><td>${result.data.lastName || ""}</td></tr>
-                  <tr><th>Date of Birth</th><td>${result.data.dateOfBirth || result.data.dob || "N/A"}</td></tr>
-                  <tr><th>Phone No</th><td>${result.data.phoneNumber || result.data.phone || "N/A"}</td></tr>
+                  <tr><th>First Name</th><td>${result.data.firstName || result.data.firstname || ""}</td></tr>
+                  <tr><th>Middle Name</th><td>${result.data.middleName || result.data.middlename || ""}</td></tr>
+                  <tr><th>Last Name</th><td>${result.data.lastName || result.data.surname || result.data.lastname || ""}</td></tr>
+                  <tr><th>Date of Birth</th><td>${result.data.dateOfBirth || result.data.birthdate || result.data.dob || "N/A"}</td></tr>
+                  <tr><th>Phone No</th><td>${result.data.phoneNumber || result.data.phone || result.data.telephoneno || "N/A"}</td></tr>
                   <tr><th>Gender</th><td>${result.data.gender || "N/A"}</td></tr>
                   <tr><th>Enrollment Bank</th><td>${result.data.enrollmentBank || "N/A"}</td></tr>
                   <tr><th>Enrollment Branch</th><td>${result.data.enrollmentBranch || "N/A"}</td></tr>
@@ -62,6 +68,8 @@ $("#verifyBVN").on("click", function (event) {
    </div>
 </div>
 `;
+                hideLoader();
+                $("#validation-info").removeClass("hidden").removeClass("d-none");
                 $("#download").show();
             } else {
                 hideLoader();
@@ -149,10 +157,10 @@ $("#plasticSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
-        .then((response) => {
+    .then((response) => {
             if (response.ok) {
                 const contentDisposition = response.headers.get("Content-Disposition");
                 let filename = "document.pdf";

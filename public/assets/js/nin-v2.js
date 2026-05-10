@@ -96,7 +96,7 @@ $("#regularSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -164,7 +164,7 @@ $("#standardSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -232,7 +232,7 @@ $("#premiumSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -300,7 +300,7 @@ $("#basicSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -368,7 +368,7 @@ $("#vninSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -461,7 +461,7 @@ $(".dropdown-option").click(function (e) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {

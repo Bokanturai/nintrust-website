@@ -38,6 +38,12 @@ $("#verifyNIN").on("click", function (event) {
             $("#loader").hide();
 
             if (result && result.data) {
+                const photoData = result.data.photo || result.data.face || result.data.image || result.data.passport || '';
+                const defaultPhoto = '/assets/images/img/default-avatar.jpg';
+                const photoSrc = photoData
+                    ? (photoData.startsWith('data:image') ? photoData : `data:image/;base64,${photoData}`)
+                    : defaultPhoto;
+
                 validationInfo.innerHTML = `
             <div class="border border-light">
 
@@ -54,37 +60,37 @@ $("#verifyNIN").on("click", function (event) {
          <tbody>
             <tr>
                <th scope="row" rowspan="9">
-                  <img class="rounded" src="data:image/;base64, ${result.data.photo}" alt="User Image" style="width: 250px; height: 250px;">
+                  <img class="rounded" src="${photoSrc}" alt="User Image" style="width: 250px; height: 250px;">
                </th>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">NIN</th>
-               <td style="text-align:left" ><span id="nin_no" >${result.data.nin}</span>
+               <td style="text-align:left" ><span id="nin_no" >${result.data.nin || result.data.idNumber || ""}</span>
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">FirstName</th>
-               <td  style="text-align:left">${result.data.firstname}
+               <td  style="text-align:left">${result.data.firstname || result.data.firstName || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Surname</th>
-               <td  style="text-align:left">${result.data.surname}
+               <td  style="text-align:left">${result.data.surname || result.data.lastName || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Middle Name</th>
-               <td  style="text-align:left">${result.data.middlename}
+               <td  style="text-align:left">${result.data.middlename || result.data.middleName || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Phone No</th>
-               <td  style="text-align:left">${result.data.telephoneno}
+               <td  style="text-align:left">${result.data.telephoneno || result.data.telephoneNo || result.data.mobile || result.data.phone || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Gender</th>
-               <td  style="text-align:left">${result.data.gender}
+               <td  style="text-align:left">${result.data.gender || "N/A"}
                </td>
             </tr>
          </tbody>
@@ -92,6 +98,8 @@ $("#verifyNIN").on("click", function (event) {
    </div>
 </div>
             `;
+                hideLoader();
+                $("#validation-info").removeClass("hidden").removeClass("d-none");
                 $("#download").show();
             } else {
                 hideLoader();
@@ -124,7 +132,7 @@ $("#regularSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -192,7 +200,7 @@ $("#standardSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -260,7 +268,7 @@ $("#premiumSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -328,7 +336,7 @@ $("#basicSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -396,7 +404,7 @@ $("#vninSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {

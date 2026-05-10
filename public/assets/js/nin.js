@@ -19,22 +19,28 @@ $("#verifyNIN").on("click", function (event) {
         success: function (result) {
             $("#loader").hide();
             if (result && result.data) {
+                const photoData = result.data.photo || result.data.face || result.data.image || result.data.passport || '';
+                const defaultPhoto = '/assets/images/img/default-avatar.jpg';
+                const photoSrc = photoData
+                    ? (photoData.startsWith('data:image') ? photoData : `data:image/;base64,${photoData}`)
+                    : defaultPhoto;
+
                 validationInfo.innerHTML = `
 <div class="border border-light p-3">
    <div class="row">
       <div class="col-md-4 text-center mb-3">
-         <img class="rounded img-fluid" src="data:image/;base64, ${result.data.photo || ""}" alt="User Image" style="max-width: 100%; height: auto;">
+         <img class="rounded img-fluid" src="${photoSrc}" alt="User Image" style="max-width: 100%; height: auto;">
       </div>
       <div class="col-md-8">
          <div class="table-responsive">
             <table class="table table-sm">
                <tbody>
-                  <tr><th style="width: 40%;">NIN</th><td><span id="nin_no">${result.data.nin || ""}</span></td></tr>
-                  <tr><th>First Name</th><td>${result.data.firstName || ""}</td></tr>
-                  <tr><th>Middle Name</th><td>${result.data.middleName || ""}</td></tr>
-                  <tr><th>Surname</th><td>${result.data.surname || ""}</td></tr>
-                  <tr><th>Date of Birth</th><td>${result.data.birthDate || "N/A"}</td></tr>
-                  <tr><th>Phone No</th><td>${result.data.telephoneNo || "N/A"}</td></tr>
+                  <tr><th style="width: 40%;">NIN</th><td><span id="nin_no">${result.data.nin || result.data.idNumber || ""}</span></td></tr>
+                  <tr><th>First Name</th><td>${result.data.firstname || result.data.firstName || ""}</td></tr>
+                  <tr><th>Middle Name</th><td>${result.data.middlename || result.data.middleName || ""}</td></tr>
+                  <tr><th>Surname</th><td>${result.data.surname || result.data.lastName || ""}</td></tr>
+                  <tr><th>Date of Birth</th><td>${result.data.birthdate || result.data.birthDate || result.data.dateOfBirth || "N/A"}</td></tr>
+                  <tr><th>Phone No</th><td>${result.data.telephoneno || result.data.telephoneNo || result.data.mobile || result.data.phone || "N/A"}</td></tr>
                   <tr><th>Gender</th><td>${result.data.gender || "N/A"}</td></tr>
                   <tr><th>Residence</th><td>${result.data.residence_state || ""} - ${result.data.residence_lga || ""}</td></tr>
                </tbody>
@@ -44,6 +50,8 @@ $("#verifyNIN").on("click", function (event) {
    </div>
 </div>
 `;
+                hideLoader();
+                $("#validation-info").removeClass("hidden").removeClass("d-none");
                 $("#download").show();
             } else {
                 hideLoader();
@@ -65,7 +73,10 @@ $("#verifyNIN").on("click", function (event) {
 function downloadSlip(url, getNIN) {
     fetch(url + getNIN, {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content')
+        },
     })
     .then((response) => {
         if (response.ok) {

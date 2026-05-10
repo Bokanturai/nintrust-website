@@ -36,10 +36,16 @@ $("#verifyNIN").on("click", function (event) {
             $("#loader").hide();
 
             if (result && result.data) {
+                const photoData = result.data.face || result.data.photo || result.data.image || result.data.passport || '';
+                const defaultPhoto = '/assets/images/img/default-avatar.jpg';
+                const photoSrc = photoData
+                    ? (photoData.startsWith('data:image') ? photoData : `data:image/;base64,${photoData}`)
+                    : defaultPhoto;
+
                 validationInfo.innerHTML = `
             <div class="border border-light">
    <div class="table-responsive">
-   <center><span class="text-danger mt-4" style="margin-top:5px; padding-top:3px;">${result.data.message}</span></center>
+   <center><span class="text-danger mt-4" style="margin-top:5px; padding-top:3px;">${result.data.message || ""}</span></center>
       <table class="table">
          <thead >
             <tr>
@@ -52,44 +58,44 @@ $("#verifyNIN").on("click", function (event) {
          <tbody>
             <tr>
                <th scope="row" rowspan="9">
-                  <img class="rounded" src="data:image/;base64, ${result.data.face}" alt="User Image" style="width: 250px; height: 250px;">
+                  <img class="rounded" src="${photoSrc}" alt="User Image" style="width: 250px; height: 250px;">
                </th>
             </tr>
               <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Tracking Number</th>
-               <td  style="text-align:left">${result.data.trackingid}
+               <td  style="text-align:left">${result.data.trackingid || result.data.trackingId || "N/A"}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">NIN</th>
-               <td style="text-align:left" ><span id="nin_no" >${result.data.nin}</span>
+               <td style="text-align:left" ><span id="nin_no" >${result.data.nin || result.data.idNumber || ""}</span>
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">FirstName</th>
-               <td  style="text-align:left">${result.data.firstname}
+               <td  style="text-align:left">${result.data.firstname || result.data.firstName || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Surname</th>
-               <td  style="text-align:left">${result.data.lastname}
+               <td  style="text-align:left">${result.data.lastname || result.data.surname || result.data.lastName || ""}
                </td>
             </tr>
             <tr>
                <th scope="row" style="text-align:right; border: none ! important;">Middle Name</th>
-               <td  style="text-align:left">${result.data.middlename}
+               <td  style="text-align:left">${result.data.middlename || result.data.middleName || ""}
                </td>
             </tr>
             <tr>
                 <th scope="row" style="text-align:right; border: none !important;">Gender</th>
                 <td style="text-align:left">
-                    ${result.data.gender === 'm' ? 'Male' : result.data.gender === 'f' ? 'Female' : 'Not Specified'}
+                    ${result.data.gender === 'm' || result.data.gender === 'Male' ? 'Male' : (result.data.gender === 'f' || result.data.gender === 'Female' ? 'Female' : 'Not Specified')}
                 </td>
             </tr>
 
             <tr>
                <th scope="row" style="text-align:right;">Address</th>
-               <td  style="text-align:left">${result.data.address}
+               <td  style="text-align:left">${result.data.address || result.data.addressLine || "N/A"}
                </td>
             </tr>
          </tbody>
@@ -97,6 +103,8 @@ $("#verifyNIN").on("click", function (event) {
    </div>
 </div>
             `;
+                hideLoader();
+                $("#validation-info").removeClass("hidden").removeClass("d-none");
                 $("#download").show();
                 $("#downloadDiv").show();
 
@@ -130,7 +138,7 @@ $("#regularSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -198,7 +206,7 @@ $("#vninSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {

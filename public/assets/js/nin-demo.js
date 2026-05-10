@@ -46,7 +46,7 @@ $("#verifyNIN").on("click", function (event) {
 <div class="border border-light p-3">
    <div class="row">
       <div class="col-md-4 text-center mb-3">
-         <img class="rounded" src="data:image/;base64, ${result.data.photo}" alt="User Image" style="width: 250px; height: 250px;">
+         <img class="rounded" src="${photoSrc}" alt="User Image" style="width: 250px; height: 250px;">
       </div>
       <div class="col-md-8">
          <div class="table-responsive">
@@ -54,27 +54,27 @@ $("#verifyNIN").on("click", function (event) {
                <tbody>
                   <tr>
                      <th style="width: 40%;">NIN</th>
-                     <td><span id="nin_no">${result.data.idNumber}</span></td>
+                     <td><span id="nin_no">${result.data.nin || result.data.idNumber || ""}</span></td>
                   </tr>
                     <tr>
                         <th>Tracking ID</th>
-                        <td>${result.data.trackingId}</td>
+                        <td>${result.data.trackingId || result.data.trackingid || "N/A"}</td>
                     </tr>
                   <tr>
                      <th>First Name</th>
-                     <td>${result.data.firstName}</td>
+                     <td>${result.data.firstname || result.data.firstName || ""}</td>
                   </tr>
                   <tr>
                      <th>Surname</th>
-                     <td>${result.data.lastName}</td>
+                     <td>${result.data.surname || result.data.lastName || ""}</td>
                   </tr>
                   <tr>
                      <th>Middle Name</th>
-                     <td>${result.data.middleName}</td>
+                     <td>${result.data.middlename || result.data.middleName || ""}</td>
                   </tr>
                   <tr>
                      <th>Date of Birth</th>
-                     <td>${result.data.dateOfBirth}</td>
+                     <td>${result.data.birthdate || result.data.birthDate || result.data.dateOfBirth || "N/A"}</td>
                   </tr>
                   <tr>
                      <th>Phone No</th>
@@ -82,7 +82,7 @@ $("#verifyNIN").on("click", function (event) {
                   </tr>
                   <tr>
                      <th>Gender</th>
-                     <td>${result.data.gender}</td>
+                     <td>${result.data.gender || "N/A"}</td>
                   </tr>
                  <tr>
               <th>Residence State</th>
@@ -106,7 +106,7 @@ $("#verifyNIN").on("click", function (event) {
             </tr>
                   <tr>
                      <th>Address</th>
-                     <td>${result.data.addressLine}</td>
+                     <td>${result.data.residence_AdressLine1 || result.data.addressLine || result.data.address || "N/A"}</td>
                   </tr>
                </tbody>
             </table>
@@ -115,7 +115,8 @@ $("#verifyNIN").on("click", function (event) {
    </div>
 </div>
 `;
-
+                hideLoader();
+                $("#validation-info").removeClass("hidden").removeClass("d-none");
                 $("#download").removeClass("d-none"); // show
             } else {
                 hideLoader();
@@ -148,7 +149,7 @@ $("#regularSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -216,7 +217,7 @@ $("#standardSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -284,7 +285,7 @@ $("#premiumSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -352,7 +353,7 @@ $("#basicSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -420,7 +421,7 @@ $("#vninSlip").on("click", function (event) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {
@@ -513,7 +514,7 @@ $(".dropdown-option").click(function (e) {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr('content'),
         },
     })
         .then((response) => {

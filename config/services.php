@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'arewa' => [
+        'url' => env('AREWA_URL'),
+        'token' => env('AREWA_TOKEN'),
+    ],
+
 ];
