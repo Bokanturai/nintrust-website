@@ -24,10 +24,48 @@
                     <div class="alert alert-info border-0 shadow-sm small mb-4">
                         <i class="bi bi-info-circle-fill me-2"></i>
                         A service fee of <strong>₦{{ number_format($bvnService->amount ?? 500, 2) }}</strong> will be deducted. Results will be provided manually.
+                        <hr class="my-2 opacity-25">
+                        <span class="fw-bold"><i class="bi bi-clock-history me-1"></i> Processing Time:</span> This request can take up to 28h to 48h working days.
                     </div>
 
                     <form action="{{ route('user.manual-bvn-search.store') }}" method="POST">
                         @csrf
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase tracking-wider">First Name</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-person"></i></span>
+                                <input type="text" name="first_name" class="form-control border-start-0 ps-0 @error('first_name') is-invalid @enderror" 
+                                       placeholder="Enter First Name" value="{{ old('first_name') }}" required>
+                                @error('first_name')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase tracking-wider">Middle Name (Optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-person"></i></span>
+                                <input type="text" name="middle_name" class="form-control border-start-0 ps-0 @error('middle_name') is-invalid @enderror" 
+                                       placeholder="Enter Middle Name" value="{{ old('middle_name') }}">
+                                @error('middle_name')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-uppercase tracking-wider">Last Name</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="bi bi-person"></i></span>
+                                <input type="text" name="last_name" class="form-control border-start-0 ps-0 @error('last_name') is-invalid @enderror" 
+                                       placeholder="Enter Last Name" value="{{ old('last_name') }}" required>
+                                @error('last_name')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
                         <div class="mb-4">
                             <label class="form-label fw-bold small text-uppercase tracking-wider">Phone Number / BVN</label>
                             <div class="input-group">
@@ -64,6 +102,7 @@
                             <thead class="bg-light">
                                 <tr>
                                     <th class="ps-4 border-0 small text-uppercase fw-bold text-muted">Date</th>
+                                    <th class="border-0 small text-uppercase fw-bold text-muted">Name</th>
                                     <th class="border-0 small text-uppercase fw-bold text-muted">ID Submitted</th>
                                     <th class="border-0 small text-uppercase fw-bold text-muted">Reference</th>
                                     <th class="border-0 small text-uppercase fw-bold text-muted text-center">Status</th>
@@ -76,6 +115,12 @@
                                         <td class="ps-4 py-3">
                                             <div class="fw-bold text-dark">{{ $submission->created_at->format('d M, Y') }}</div>
                                             <div class="text-muted small">{{ $submission->created_at->format('h:i A') }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold text-dark">{{ $submission->first_name }} {{ $submission->last_name }}</div>
+                                            @if($submission->middle_name)
+                                                <div class="small text-muted">{{ $submission->middle_name }}</div>
+                                            @endif
                                         </td>
                                         <td><span class="fw-bold">{{ $submission->phone_number }}</span></td>
                                         <td><code class="text-primary">{{ $submission->reference }}</code></td>

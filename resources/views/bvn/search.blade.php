@@ -24,6 +24,8 @@
                     <div class="alert alert-info border-0 shadow-sm small mb-4">
                         <i class="bi bi-info-circle-fill me-2"></i>
                         A service fee of <strong>₦{{ number_format($bvnService->amount ?? 500, 2) }}</strong> will be deducted for each submission.
+                        <hr class="my-2 opacity-25">
+                        <span class="fw-bold"><i class="bi bi-clock-history me-1"></i> Processing Time:</span> This request can take up to 28h to 48h working days.
                     </div>
 
                     <form action="{{ route('user.bvn-search.store') }}" method="POST" id="bvnSearchForm">

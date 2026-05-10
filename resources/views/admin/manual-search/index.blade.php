@@ -26,6 +26,7 @@
                                 <tr>
                                     <th class="ps-4">Date</th>
                                     <th>User</th>
+                                    <th>Full Name</th>
                                     <th>ID Submitted</th>
                                     <th>Reference</th>
                                     <th class="text-center">Status</th>
@@ -42,6 +43,9 @@
                                         <td>
                                             <div class="fw-bold">{{ $submission->user->name }}</div>
                                             <div class="small text-muted">{{ $submission->user->email }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-bold text-dark">{{ $submission->first_name }} {{ $submission->middle_name }} {{ $submission->last_name }}</div>
                                         </td>
                                         <td><span class="fw-bold text-dark">{{ $submission->phone_number }}</span></td>
                                         <td><code class="text-primary">{{ $submission->reference }}</code></td>

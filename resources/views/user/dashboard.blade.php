@@ -740,7 +740,7 @@
 
                                      [
                                         'icon' => 'bi-search',
-                                        'label' => 'Manual BVN Search',
+                                        'label' => 'BVN Phone Search',
                                         'route' => 'user.manual-bvn-search',
                                     ],
 

@@ -41,6 +41,11 @@
                             </div>
                         @endif
 
+                        <div class="alert alert-info border-0 shadow-sm small mb-4">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <span class="fw-bold"><i class="bi bi-clock-history me-1"></i> Processing Time:</span> This request can take up to 28h to 48h working days.
+                        </div>
+
                         <div class="text-center mb-4">
                             <h5 class="fw-bold">{{ $crmService->name ?? 'Central Risk Management CRM' }}</h5>
                             <p class="text-muted">

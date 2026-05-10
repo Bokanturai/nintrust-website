@@ -34,7 +34,10 @@ class BvnManualSearchController extends Controller
             $s = $request->search;
             $query->where(function($q) use ($s) {
                 $q->where('phone_number', 'like', "%{$s}%")
-                  ->orWhere('reference', 'like', "%{$s}%");
+                  ->orWhere('reference', 'like', "%{$s}%")
+                  ->orWhere('first_name', 'like', "%{$s}%")
+                  ->orWhere('middle_name', 'like', "%{$s}%")
+                  ->orWhere('last_name', 'like', "%{$s}%");
             });
         }
 
@@ -62,6 +65,9 @@ class BvnManualSearchController extends Controller
 
         $request->validate([
             'phone_number' => 'required|string|digits_between:10,11',
+            'first_name'   => 'required|string|max:255',
+            'middle_name'  => 'nullable|string|max:255',
+            'last_name'    => 'required|string|max:255',
         ]);
 
         // Find the service
@@ -100,6 +106,9 @@ class BvnManualSearchController extends Controller
                 'performed_by'        => $user->id,
                 'metadata'            => [
                     'phone_number' => $request->phone_number,
+                    'first_name'   => $request->first_name,
+                    'middle_name'  => $request->middle_name,
+                    'last_name'    => $request->last_name,
                     'service'      => 'MANUAL_BVN_SEARCH'
                 ]
             ]);
@@ -111,6 +120,9 @@ class BvnManualSearchController extends Controller
                 'transaction_id'  => $transaction->id,
                 'reference'       => $reference,
                 'phone_number'    => $request->phone_number,
+                'first_name'      => $request->first_name,
+                'middle_name'     => $request->middle_name,
+                'last_name'       => $request->last_name,
                 'status'          => 'processing',
                 'amount'          => $servicePrice,
                 'submission_date' => now(),
@@ -155,6 +167,9 @@ class BvnManualSearchController extends Controller
             $query->where(function($q) use ($s) {
                 $q->where('phone_number', 'like', "%{$s}%")
                   ->orWhere('reference', 'like', "%{$s}%")
+                  ->orWhere('first_name', 'like', "%{$s}%")
+                  ->orWhere('middle_name', 'like', "%{$s}%")
+                  ->orWhere('last_name', 'like', "%{$s}%")
                   ->orWhereHas('user', function($u) use ($s) {
                       $u->where('name', 'like', "%{$s}%")
                         ->orWhere('email', 'like', "%{$s}%");
