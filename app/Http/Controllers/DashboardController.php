@@ -53,10 +53,12 @@ class DashboardController extends Controller
 
             $totalWalletBalance = DB::table('wallets')->selectRaw('SUM(balance) as total')->value('total');
             $totalBonusBalance = DB::table('bonus_histories')->selectRaw('SUM(amount) as total')->value('total');
-            $ipePending = IpeRequest::whereIn('resp_code', ['100', '101'])->count();
+             $ipePending = IpeRequest::whereIn('resp_code', ['100', '101'])->count();
              $suspendedNinPending = SuspendedNinRequest::whereIn('status', ['submitted', 'processing'])->count();
              $vninSlipPending = VninSlipRequest::whereIn('status', ['submitted', 'processing'])->count();
              $personalizeNinPending = PersonalizeNinRequest::whereIn('status', ['submitted', 'processing'])->count();
+             $manualBvnPending = \App\Models\AgentService::where('service_type', 'MANUAL_BVN_SEARCH')->whereIn('status', ['processing', 'pending'])->count();
+
             $metrics = [
                 [
                     'title' => 'Total Revenue',
@@ -155,6 +157,13 @@ class DashboardController extends Controller
                     'icon' => 'bi-search',
                     'bg' => 'primary',
                     'href' => 'admin.personalize-nin.index',
+                ],
+                [
+                    'title' => 'Phone Search Manual',
+                    'value' => number_format($manualBvnPending),
+                    'icon' => 'bi bi-telephone-fill',
+                    'bg' => 'success',
+                    'href' => 'admin.manual-bvn-search.index',
                 ],
             ];
 

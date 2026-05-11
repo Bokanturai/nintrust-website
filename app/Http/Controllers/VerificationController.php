@@ -751,7 +751,7 @@ class VerificationController extends Controller
             }
 
             $status = strtolower($response['status'] ?? 'pending');
-            $respCode = $response['respCode'] ?? $response['response_code'] ?? null;
+            $respCode = $response['resp_code'] ?? $response['response_code'] ?? $response['respCode'] ?? '100';
             $comment = $response['comment'] ?? $response['message'] ?? 'No response message returned.';
 
             $isAccepted = (isset($response['success']) && $response['success'] === true)
@@ -788,13 +788,10 @@ class VerificationController extends Controller
         }
     }
 
-    public function ipeRequestStatus($trackingId)
+    public function ipeRequestStatus(Request $request, $trackingId)
     {
         try {
-
-            $data = ['trackingId' => $trackingId];
-
-            $url = env('AREWA_URL').'/nin/ipe?tracking_id=' . $trackingId;
+            $url = env('AREWA_URL') . '/nin/ipe?tracking_id=' . $trackingId;
             $token = env('AREWA_TOKEN');
 
             $headers = [
@@ -803,58 +800,52 @@ class VerificationController extends Controller
                 "Authorization: Bearer $token",
             ];
 
-            // Initialize cURL
             $ch = curl_init();
-
-            // Set cURL options
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, config('app.env') === 'production');
             curl_setopt($ch, CURLOPT_HTTPGET, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-            // Execute request
             $response = curl_exec($ch);
-
-            // Check for cURL errors
             if (curl_errno($ch)) {
                 $error = curl_error($ch);
                 curl_close($ch);
-                throw new \Exception('cURL Error: '.$error);
+                throw new \Exception('cURL Error: ' . $error);
             }
-
-            // Close cURL session
             curl_close($ch);
 
             $response = json_decode($response, true);
-
-            if (! is_array($response)) {
-                return redirect()->route('user.ipe')->with('error', 'Invalid response from the IPE API.');
+            if (!is_array($response)) {
+                throw new \Exception('Invalid response from the IPE API.');
             }
 
             $status = strtolower($response['status'] ?? 'pending');
-            $respCode = $response['respCode'] ?? $response['response_code'] ?? null;
+            $respCode = $response['resp_code'] ?? $response['response_code'] ?? $response['respCode'] ?? '100';
             $comment = $response['comment'] ?? $response['message'] ?? 'No response message returned.';
 
             $isSuccessful = (isset($response['success']) && $response['success'] === true)
-                || $status === 'success'
-                || $status === 'successful'
-                || in_array($respCode, ['111111', '200'], true);
+                || in_array($status, ['success', 'successful'], true)
+                || in_array($respCode, ['111111', '200', '00'], true);
+
+            $isFailed = in_array($status, ['failed', 'rejected'], true) || in_array($respCode, ['400', '01'], true);
 
             if ($isSuccessful) {
                 IpeRequest::where('trackingId', $trackingId)
                     ->where('user_id', $this->loginId)
                     ->update(['reply' => $comment, 'status' => 'successful', 'resp_code' => $respCode]);
 
-                return redirect()->route('user.ipe')
-                    ->with('success', 'IPE request is successful: ' . $comment);
+                $message = 'IPE request is successful: ' . $comment;
+                if ($request->wantsJson()) {
+                    return response()->json(['status' => 'success', 'message' => $message]);
+                }
+                return redirect()->route('user.ipe')->with('success', $message);
             }
 
-            if ($status === 'rejected' || $status === 'failed') {
+            if ($isFailed) {
                 // process refund
                 $ServiceFee = Service::getAmountByCode('112');
                 if ($ServiceFee) {
-                    $wallet = Wallet::where('user_id', $this->loginId)->first();
                     $requestRecord = IpeRequest::where('trackingId', $trackingId)
                         ->where('user_id', $this->loginId)
                         ->whereNull('refunded_at')
@@ -862,15 +853,22 @@ class VerificationController extends Controller
 
                     if ($requestRecord) {
                         Wallet::where('user_id', $this->loginId)->increment('balance', $ServiceFee);
-                        IpeRequest::where('trackingId', $trackingId)
-                            ->where('user_id', $this->loginId)
-                            ->update(['refunded_at' => Carbon::now(), 'reply' => $comment, 'status' => 'failed', 'resp_code' => $respCode]);
+                        $requestRecord->update([
+                            'refunded_at' => Carbon::now(),
+                            'reply' => $comment,
+                            'status' => 'failed',
+                            'resp_code' => $respCode
+                        ]);
 
                         $this->transactionService->createTransaction($this->loginId, $ServiceFee, 'IPE Refund', "IPE Refund for Tracking ID: {$trackingId}", 'Wallet', 'Approved');
                     }
                 }
 
-                return redirect()->route('user.ipe')->with('error', 'IPE Request Failed: ' . $comment);
+                $message = 'IPE Request Failed: ' . $comment;
+                if ($request->wantsJson()) {
+                    return response()->json(['status' => 'error', 'message' => $message]);
+                }
+                return redirect()->route('user.ipe')->with('error', $message);
             }
 
             // Update any other statuses as processing/pending
@@ -878,11 +876,20 @@ class VerificationController extends Controller
             IpeRequest::where('trackingId', $trackingId)
                 ->where('user_id', $this->loginId)
                 ->update(['status' => $normalizedStatus, 'reply' => $comment, 'resp_code' => $respCode]);
-            return redirect()->route('user.ipe')->with('success', 'IPE Status: ' . ucfirst($normalizedStatus));
-        } catch (\Exception $e) {
 
-            return redirect()->route('user.ipe')
-                ->with('error', 'An error occurred while making the API request');
+            $message = 'IPE Status: ' . ucfirst($normalizedStatus);
+            if ($request->wantsJson()) {
+                return response()->json(['status' => 'success', 'message' => $message]);
+            }
+            return redirect()->route('user.ipe')->with('success', $message);
+
+        } catch (\Exception $e) {
+            Log::error('IPE Status Check Error: ' . $e->getMessage());
+            $message = 'An error occurred while checking status: ' . $e->getMessage();
+            if ($request->wantsJson()) {
+                return response()->json(['status' => 'error', 'message' => $message], 500);
+            }
+            return redirect()->route('user.ipe')->with('error', $message);
         }
     }
 

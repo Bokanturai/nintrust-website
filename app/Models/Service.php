@@ -26,4 +26,16 @@ class Service extends Model
     {
         return $this->hasMany(Verification::class);
     }
+
+    /**
+     * Get the amount by service code.
+     *
+     * @param string $code
+     * @return float|int
+     */
+    public static function getAmountByCode($code)
+    {
+        $service = self::where('service_code', $code)->first();
+        return $service ? $service->amount : 0;
+    }
 }
